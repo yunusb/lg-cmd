@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Télécommande LG 2015",
+    "slug": "lg-cmd",
+    "scheme": "lgcmd",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "platforms": [
+      "android"
+    ],
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.yunusb.lgcmd",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.TRANSMIT_IR"
+      ],
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "./plugins/withCleartextForLocalWebOS"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d4c12bb7-ce55-478f-a5b7-b519275a775f"
+      }
+    }
+  }
+}

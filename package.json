@@ -1,0 +1,23 @@
+{
+  "name": "lg-cmd",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "check": "tsc --noEmit",
+    "build:apk": "eas build --platform android --profile preview",
+    "build:dev": "eas build --platform android --profile development"
+  },
+  "dependencies": {
+    "expo": "~57.0.31",
+    "expo-secure-store": "~57.0.4",
+    "react": "19.2.3",
+    "react-native": "0.86.3"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "typescript": "~5.9.2"
+  }
+}

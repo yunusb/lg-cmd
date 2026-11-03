@@ -1,10 +1,13 @@
 node_modules/
 .expo/
+.android/
 android/
 ios/
 dist/
+web-build/
 *.apk
 *.aab
 .env
 .env.*
 !.env.example
+.DS_Store

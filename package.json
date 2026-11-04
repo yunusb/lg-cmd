@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "check": "tsc --noEmit",
     "build:apk": "eas build --platform android --profile preview",
-    "build:dev": "eas build --platform android --profile development"
+    "build:dev": "eas build --platform android --profile development",
+    "eas-build-pre-install": "npm install --package-lock-only --ignore-scripts --no-audit --no-fund"
   },
   "dependencies": {
     "expo": "~57.0.31",
@@ -18,6 +19,6 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.0",
-    "typescript": "~5.9.2"
+    "typescript": "~6.0.3"
   }
 }

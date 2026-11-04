@@ -1,6 +1,18 @@
 apply plugin: 'com.android.library'
 apply plugin: 'expo-module-gradle-plugin'
 
+// SDK 57 requires library version information during Expo autolinking.
+group = 'expo.modules.lginfrared'
+version = '1.0.1'
+
+expoModule {
+  canBePublished false
+}
+
 android {
   namespace 'expo.modules.lginfrared'
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.1'
+  }
 }

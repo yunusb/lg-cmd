@@ -16,8 +16,7 @@
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.TRANSMIT_IR"
-      ],
-      "edgeToEdgeEnabled": true
+      ]
     },
     "plugins": [
       "./plugins/withCleartextForLocalWebOS"

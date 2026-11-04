@@ -5,7 +5,7 @@ Projet **Expo + React Native + TypeScript**, prêt à être compilé en **APK An
 ## Compatibilité
 
 - **Wi-Fi** : LG Smart TV prenant en charge **LG webOS / SSAP**. Téléphone et TV sur le même réseau local. Les LG webOS 1.x/2.x utilisent généralement le port 3000. Accepter la demande de jumelage à l'écran.
-- **Infrarouge** : télévision LG LCD/LED et téléphone Android ayant un **émetteur IR physique**. Codes LG/NEC à 38 kHz, susceptibles de varier selon le modèle.
+- **Infrarouge** : télévision LG LCD/LED et téléphone Android ayant un **émetteur IR physique** (le **POCO F3** en possède un). Codes LG/NEC à 38 kHz, susceptibles de varier selon le modèle.
 - **Expo Go** : le module infrarouge n'est pas inclus. Il faut un **APK EAS** (ou Development Build) pour utiliser l'IR.
 - **Power Wi-Fi** : la commande éteint la télévision, mais ne peut pas la rallumer par SSAP. En infrarouge, elle peut allumer et éteindre.
 
@@ -28,6 +28,8 @@ eas build --platform android --profile preview
 Puis ouvrir le lien APK fourni par EAS sur le téléphone Android pour l'installer. Si nécessaire, autoriser l'installation de cette source dans les paramètres Android.
 
 **Important : le dépôt contient les sources, pas un APK déjà compilé.** Le compte Expo connecté doit avoir accès au projet EAS ci-dessus. Une première compilation et une configuration des identifiants Android peuvent être nécessaires.
+
+La commande `eas-build-pre-install` génère un fichier `package-lock.json` avant les vérifications Expo dans le cloud pour pallier son absence initiale du dépôt. Pour des versions reproductibles sur la durée, lancer `npm install` sur un ordinateur et commiter le fichier généré.
 
 ## Build automatique depuis GitHub
 
@@ -54,6 +56,6 @@ Si la TV n'est pas Smart/webOS, utiliser l'IR avec un téléphone compatible.
 
 ## État et limites
 
-Le code a été préparé, mais **n'a pas encore été compilé ni testé sur une télévision physique**. Une première compilation peut demander des corrections. Les TV LG NetCast ou LCD non Smart ne sont pas contrôlables en Wi-Fi avec ce protocole. Ne jamais exposer le port de commande LG sur Internet ; l'application ne se connecte qu'à une IP locale.
+Correctifs Expo Doctor / Gradle du 4 novembre 2026 : version TypeScript compatible SDK 57, schéma Android valide et `versionName` du module IR. **Une compilation réussie n'a pas encore été confirmée et l'application n'a pas été testée sur une télévision physique**. Une première compilation peut demander des corrections. Les TV LG NetCast ou LCD non Smart ne sont pas contrôlables en Wi-Fi avec ce protocole. Ne jamais exposer le port de commande LG sur Internet ; l'application ne se connecte qu'à une IP locale.
 
 Références : [Expo EAS](https://docs.expo.dev/build/introduction/), [Expo modules](https://docs.expo.dev/modules/get-started/), [ConsumerIrManager Android](https://developer.android.com/reference/android/hardware/ConsumerIrManager).

@@ -12,7 +12,7 @@
     "newArchEnabled": true,
     "android": {
       "package": "com.yunusb.lgcmd",
-      "versionCode": 2,
+      "versionCode": 3,
       "allowBackup": false,
       "permissions": [
         "android.permission.INTERNET",

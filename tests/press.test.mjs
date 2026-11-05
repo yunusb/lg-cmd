@@ -143,3 +143,46 @@ test('touch end stops repetition even if visual press-out is delayed', () => {
   h.session.touchEnd(); h.clock.advance(150); h.session.press(h.options); h.session.pressOut();
   assert.deepEqual(h.actions, [0]); assert.equal(h.clock.tasks.size, 0);
 });
+
+test('an instant key dispatches at press-in even without repeat, and vibrates once', () => {
+  const h = setup(false);
+  const options = { ...h.options, immediate: true };
+  h.session.begin(); h.session.pressIn(options);
+  assert.deepEqual(h.actions, [0]); assert.deepEqual(h.feedback, [0]);
+  h.clock.advance(2000); h.session.pressOut(); h.session.press(options); h.clock.advance(1000);
+  assert.deepEqual(h.actions, [0]); assert.deepEqual(h.feedback, [0]);
+  assert.equal(h.clock.tasks.size, 0);
+});
+test('power-style immediate command never repeats when held', () => {
+  const h = setup(false); const options = { ...h.options, immediate: true };
+  h.session.pressIn(options); h.clock.advance(20000); h.session.press(options);
+  assert.deepEqual(h.actions, [0]); assert.deepEqual(h.feedback, [0]);
+});
+test('short instant remote tap cannot emit a second IR frame on release', () => {
+  const h = setup(false); const options = { ...h.options, immediate: true };
+  h.session.pressIn(options); h.clock.advance(15);
+  h.session.touchEnd(); h.session.pressOut(); h.session.press(options);
+  assert.deepEqual(h.actions, [0]); assert.deepEqual(h.feedback, [0]);
+});
+test('disabled immediate key neither transmits nor vibrates', () => {
+  const h = setup(false); const options = { ...h.options, immediate: true, disabled: true };
+  h.session.pressIn(options); h.session.press(options);
+  assert.equal(h.actions.length, 0); assert.equal(h.feedback.length, 0);
+});
+test('accessibility activation still works with immediate keys without touch', () => {
+  const h = setup(false); const options = { ...h.options, immediate: true };
+  h.session.activate(options);
+  assert.deepEqual(h.actions, [0]); assert.deepEqual(h.feedback, [0]);
+  assert.equal(h.clock.tasks.size, 0);
+});
+test('a cancelled immediate key does not resend when the release callback arrives', () => {
+  const h = setup(false); const options = { ...h.options, immediate: true };
+  h.session.pressIn(options); h.session.cancel(); h.clock.advance(1000);
+  h.session.press(options);
+  assert.deepEqual(h.actions, [0]); assert.deepEqual(h.feedback, [0]);
+});
+test('ordinary navigation actions remain release-triggered for scroll safety', () => {
+  const h = setup(false);
+  h.session.pressIn(h.options); assert.deepEqual(h.actions, []);
+  h.session.cancel(); h.session.press(h.options); assert.deepEqual(h.actions, []);
+});

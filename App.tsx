@@ -27,7 +27,7 @@ export default function App() {
 function RemoteScreen() {
   const r = useRemote();
   const key = (command: RemoteKey, label: string, icon?: IconName, repeat = false) =>
-    <Key label={label} icon={icon} disabled={!r.available(command)} repeat={repeat}
+    <Key label={label} icon={icon} disabled={!r.available(command)} repeat={repeat} immediate
       onPress={() => void r.send(command)} style={{ flex: 1 }} />;
   const power = () => {
     if (r.mode === 'wifi') Alert.alert('Éteindre la TV ?', 'Le Wi-Fi ne pourra pas la rallumer. Utilisez le mode infrarouge.', [
@@ -49,7 +49,7 @@ function RemoteScreen() {
         <View style={{ flex: 1 }}><Text style={styles.title} accessibilityRole="header">LG Remote</Text>
           <Text style={s.muted}>Votre TV, simplement.</Text></View>
         <Key label={r.mode === 'ir' ? 'Marche ou arrêt' : 'Éteindre la TV'} icon="power" danger
-          disabled={!r.available('POWER')} onPress={power} style={{ width: 56 }} />
+          disabled={!r.available('POWER')} immediate={r.mode === 'ir'} onPress={power} style={{ width: 56 }} />
       </View>
 
       <View style={styles.segment}>
@@ -74,20 +74,20 @@ function RemoteScreen() {
       <View style={styles.pad}>
         <View style={styles.padRow}><View style={styles.empty} />{key('UP', 'Haut', 'up', true)}<View style={styles.empty} /></View>
         <View style={styles.padRow}>{key('LEFT', 'Gauche', 'left', true)}
-          <Key label="Valider" text="OK" accent disabled={!r.available('OK')} onPress={() => void r.send('OK')} style={styles.ok} />
+          <Key label="Valider" text="OK" accent immediate disabled={!r.available('OK')} onPress={() => void r.send('OK')} style={styles.ok} />
           {key('RIGHT', 'Droite', 'right', true)}</View>
         <View style={styles.padRow}><View style={styles.empty} />{key('DOWN', 'Bas', 'down', true)}<View style={styles.empty} /></View>
       </View>
       <View style={s.row}>
-        <Key label="Retour" icon="back" caption disabled={!r.available('BACK')} onPress={() => void r.send('BACK')} style={styles.flex} />
-        <Key label="Accueil" icon="home" caption disabled={!r.available('HOME')} onPress={() => void r.send('HOME')} style={styles.flex} />
-        <Key label="Sources" icon="source" caption disabled={!r.available('SOURCE')} onPress={() => void r.send('SOURCE')} style={styles.flex} />
+        <Key label="Retour" icon="back" caption immediate disabled={!r.available('BACK')} onPress={() => void r.send('BACK')} style={styles.flex} />
+        <Key label="Accueil" icon="home" caption immediate disabled={!r.available('HOME')} onPress={() => void r.send('HOME')} style={styles.flex} />
+        <Key label="Sources" icon="source" caption immediate disabled={!r.available('SOURCE')} onPress={() => void r.send('SOURCE')} style={styles.flex} />
       </View>
       <View style={[s.row, { gap: 8 }]}>
         <View style={styles.rocker}><Text style={styles.rockerLabel}>VOLUME</Text><View style={[s.row, { gap: 8 }]}>
           {key('VOLUME_DOWN', 'Baisser le volume', 'minus', true)}{key('VOLUME_UP', 'Augmenter le volume', 'plus', true)}
         </View></View>
-        <Key label="Muet" icon="mute" disabled={!r.available('MUTE')} onPress={() => void r.send('MUTE')} style={{ width: 52 }} />
+        <Key label="Muet" icon="mute" immediate disabled={!r.available('MUTE')} onPress={() => void r.send('MUTE')} style={{ width: 52 }} />
         <View style={styles.rocker}><Text style={styles.rockerLabel}>CHAÎNES</Text><View style={[s.row, { gap: 8 }]}>
           {key('CHANNEL_DOWN', 'Chaîne précédente', 'minus', true)}{key('CHANNEL_UP', 'Chaîne suivante', 'plus', true)}
         </View></View>
@@ -132,7 +132,7 @@ function RemoteScreen() {
 
     <Sheet title="Chiffres" visible={r.panel === 'numbers'} onClose={close}>
       {[[1, 2, 3], [4, 5, 6], [7, 8, 9]].map((row, i) => <View style={s.row} key={i}>{row.map(n =>
-        <Key key={n} label={String(n)} onPress={() => void r.send(('N' + n) as RemoteKey)} disabled={!r.available(('N' + n) as RemoteKey)} style={styles.flex} />)}</View>)}
+        <Key key={n} label={String(n)} immediate onPress={() => void r.send(('N' + n) as RemoteKey)} disabled={!r.available(('N' + n) as RemoteKey)} style={styles.flex} />)}</View>)}
       <View style={s.row}><View style={styles.flex} />{key('N0', '0')}<View style={styles.flex} /></View>
     </Sheet>
     <Sheet title="Lecture" visible={r.panel === 'media'} onClose={close}>
@@ -142,7 +142,7 @@ function RemoteScreen() {
     <Sheet title="Plus de commandes" visible={r.panel === 'more'} onClose={close}>
       <View style={s.row}>{key('SETTINGS', 'Réglages TV', 'settings')}{key('INFO', 'Informations', 'info')}{key('EXIT', 'Quitter', 'close')}</View>
       <View style={s.row}>{(['RED', 'GREEN', 'YELLOW', 'BLUE'] as const).map((command, i) =>
-        <Key key={command} label={['Rouge', 'Vert', 'Jaune', 'Bleu'][i]} disabled={!r.available(command)}
+        <Key key={command} label={['Rouge', 'Vert', 'Jaune', 'Bleu'][i]} immediate disabled={!r.available(command)}
           onPress={() => void r.send(command)} style={{ flex: 1, borderBottomWidth: 4, borderBottomColor: ['#E58C87', '#92CDA1', '#E2C779', '#8DAFE9'][i] }} />)}</View>
       <View style={s.row}><View style={styles.flex}><Text style={s.text}>Retour haptique</Text><Text style={s.muted}>Une vibration légère dès l’appui, sans attendre la TV.</Text></View>
         <Switch accessibilityLabel="Retour haptique" value={r.haptics} onValueChange={r.toggleHaptics} trackColor={{ true: t.accent }} /></View>

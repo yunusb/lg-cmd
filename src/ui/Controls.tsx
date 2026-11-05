@@ -8,11 +8,11 @@ import { Icon, type IconName } from './Icon';
 import { theme as t } from './theme';
 
 /** Shared event wiring for remote keys and ordinary UI buttons. */
-function usePressHandlers(action: () => void, disabled = false, repeat = false) {
+function usePressHandlers(action: () => void, disabled = false, repeat = false, immediate = false) {
   const { feedback, interactionKey } = useTouchFeedback();
   const [session] = useState(() => new PressSession());
   const previousKey = useRef(interactionKey);
-  const options = () => ({ action, feedback, repeat,
+  const options = () => ({ action, feedback, repeat, immediate,
     disabled: disabled || (AppState.currentState !== null && AppState.currentState !== 'active') });
   useLayoutEffect(() => {
     if (disabled || previousKey.current !== interactionKey) session.cancel();
@@ -46,12 +46,12 @@ export function FeedbackPressable({ onPress, disabled, ...props }: FeedbackPress
   return <Pressable {...props} {...handlers} disabled={disabled} />;
 }
 
-export function Key({ label, icon, text, onPress, disabled = false, repeat = false,
+export function Key({ label, icon, text, onPress, disabled = false, repeat = false, immediate = false,
   accent = false, danger = false, caption = false, style }: {
   label: string; icon?: IconName; text?: string; onPress: () => void; disabled?: boolean;
-  repeat?: boolean; accent?: boolean; danger?: boolean; caption?: boolean; style?: StyleProp<ViewStyle>;
+  repeat?: boolean; immediate?: boolean; accent?: boolean; danger?: boolean; caption?: boolean; style?: StyleProp<ViewStyle>;
 }) {
-  const handlers = usePressHandlers(onPress, disabled, repeat);
+  const handlers = usePressHandlers(onPress, disabled, repeat, immediate);
   const color = accent ? t.ink : danger ? t.danger : t.text;
   return <Pressable {...handlers} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }}
     testID={'key-' + label} disabled={disabled}

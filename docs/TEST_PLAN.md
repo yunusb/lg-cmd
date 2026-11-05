@@ -32,3 +32,6 @@ Le premier vérifie les panneaux et réglages sans exiger un émetteur IR. Le se
 
 ## Limitations connues
 L'accès réseau du conteneur de développement n'a pas permis d'installer les dépendances npm ici. Les tests du noyau ont réellement tourné ; le rendu natif, le bundling complet, la compilation Kotlin, les scénarios Maestro et le jumelage physique doivent être vérifiés séparément en CI/sur appareil. Le résultat d'un build cloud doit être lu, pas présumé.
+
+## Tests additionnels de réactivité (5 novembre 2026)
+Six tests de régression couvrent l’envoi immédiat sans répétition, la sécurité des boutons d’alimentation, la suppression des doublons au relâchement, les touches désactivées, l’activation accessible et l’annulation. Le retour tactile se déclenche dès le contact, sans attendre la promesse asynchrone du module infrarouge. À valider encore avec la vibration réelle du POCO F3 et le récepteur LG : les tests unitaires ne prouvent pas la perception tactile ni la portée IR.

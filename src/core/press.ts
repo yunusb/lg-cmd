@@ -4,6 +4,7 @@ export type PressOptions = {
   action: () => void;
   feedback: () => void | Promise<void>;
   repeat?: boolean;
+  immediate?: boolean;
   disabled?: boolean;
 };
 
@@ -42,10 +43,14 @@ export class PressSession {
     if (this.cancelled || this.started) return;
     this.started = true;
     this.notify(options);
-    if (options.repeat) {
+    if (options.immediate || options.repeat) {
       this.delivered = true;
-      options.action(); // First command now, NOT after the 380 ms repeat threshold.
-      if (!this.cancelled) this.hold.start(options.action);
+      // Remote commands run at touch-down; onPress (release) only handles the
+      // fallback accessibility path and never resends this same command.
+      options.action();
+      // Continuous repetition remains opt-in (arrows, volume and channels),
+      // never power, OK, source, number keys or actions that open dialogs.
+      if (!this.cancelled && options.repeat) this.hold.start(options.action);
     }
   }
 

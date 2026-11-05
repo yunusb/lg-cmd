@@ -45,3 +45,8 @@ Comparer 1.0 et 1.1 sur POCO F3 : temps jusqu'à la première commande, nombre d
 - LG TV Plus : https://kr.eguide.lgappstv.com/manual/w16/dvb/Contents/control/remoteapp_e_a_t/fre/w3a__control__remoteapp_e_a_t__fre.html
 - LG Wi-Fi Direct : https://kr.eguide.lgappstv.com/manual/w16/dvb/Contents/settings/network/wifidirect_e_c_a_t/eng/w3a__settings__network__wifidirect_e_c_a_t__eng.html
 - Connect SDK : https://connectsdk.com/en/latest/guide-and/and-discovery-manager.html
+
+## Correction réactivité des touches (5 novembre 2026)
+Les commandes réelles de la télécommande (alimentation IR, OK, retour, accueil, chiffres, sources, audio et médias) partent dès `onPressIn`, au toucher, et non à `onPress` lors du relâchement. Seules les touches flèches/volume/chaînes se répètent après le seuil de maintien. L’alimentation Wi-Fi conserve la confirmation au relâchement, comme les boutons de navigation de l’application, afin de limiter les déclenchements accidentels. Une touche tenue n’émet qu’un premier signal immédiat, sauf si elle est explicitement répétable.
+
+Le retour haptique léger est délivré dès le contact via `expo-haptics` (Android `Virtual_Key`), indépendamment de la réussite de l’envoi IR. Il n’est émis qu’une fois par geste, pas à chaque répétition, et se désactive dans **Plus → Retour haptique**. Le retour dépend des réglages vibratoires du téléphone. Les touches désactivées ne vibrent pas.

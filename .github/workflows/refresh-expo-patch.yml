@@ -1,0 +1,38 @@
+name: Refresh Expo 57 patch lock
+# One-time, scoped patch repair. Ordinary builds continue to use immutable npm ci.
+on:
+  push:
+    branches: [ui-ux-wifi-v2]
+    paths: [.github/workflows/refresh-expo-patch.yml]
+permissions:
+  contents: write
+concurrency:
+  group: refresh-expo-patch
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Generate the real npm lock for the required SDK 57 patch
+        run: npm install 'expo@~57.0.32' --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install exactly the generated lock
+        run: npm ci
+      - name: Verify unit tests, coverage, TypeScript and Expo versions
+        run: npm run verify
+      - name: Verify the Android JavaScript bundle
+        run: npx expo export --platform android
+      - name: Commit only validated dependency files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update Expo 57 patch and lock after tests and Android export'
+            git push origin HEAD:ui-ux-wifi-v2
+          fi

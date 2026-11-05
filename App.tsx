@@ -1,10 +1,11 @@
 import React from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StatusBar, StyleSheet, Switch,
+import { ActivityIndicator, Alert, ScrollView, StatusBar, StyleSheet, Switch,
   Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { type RemoteKey } from './src/remote-keys';
 import { useRemote } from './src/useRemote';
-import { Key, Sheet, s } from './src/ui/Controls';
+import { FeedbackPressable, Key, Sheet, s } from './src/ui/Controls';
+import { FeedbackProvider } from './src/ui/Feedback';
 import { Icon, type IconName } from './src/ui/Icon';
 import { theme as t } from './src/ui/theme';
 
@@ -40,7 +41,7 @@ function RemoteScreen() {
   const notice = r.error || (r.mode === 'wifi' && r.snapshot.state === 'error' ? r.snapshot.message : '');
   const close = () => { r.stopScan(); r.setPanel(null); };
 
-  return <SafeAreaView style={styles.screen}>
+  return <FeedbackProvider enabled={r.haptics} interactionKey={`${r.mode}:${r.panel ?? 'remote'}`}><SafeAreaView style={styles.screen}>
     <StatusBar barStyle="light-content" />
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
@@ -52,21 +53,21 @@ function RemoteScreen() {
       </View>
 
       <View style={styles.segment}>
-        {(['ir', 'wifi'] as const).map(mode => <Pressable key={mode} accessibilityRole="tab"
+        {(['ir', 'wifi'] as const).map(mode => <FeedbackPressable key={mode} accessibilityRole="tab"
           accessibilityLabel={mode === 'ir' ? 'Mode infrarouge' : 'Mode Wi-Fi'} accessibilityState={{ selected: r.mode === mode }}
           onPress={() => r.chooseMode(mode)} style={[styles.mode, r.mode === mode && styles.selected]}>
           <Icon name={mode} size={20} color={r.mode === mode ? t.ink : t.muted} />
           <Text style={[styles.modeText, { color: r.mode === mode ? t.ink : t.muted }]}>{mode === 'ir' ? 'Infrarouge' : 'Wi-Fi'}</Text>
-        </Pressable>)}
+        </FeedbackPressable>)}
       </View>
 
-      <Pressable onPress={() => r.setPanel('connection')} accessibilityRole="button" accessibilityLabel="Configurer la connexion"
+      <FeedbackPressable onPress={() => r.setPanel('connection')} accessibilityRole="button" accessibilityLabel="Configurer la connexion"
         style={styles.connection}>
         <View style={[styles.dot, { backgroundColor: (r.mode === 'ir' ? r.irReady : r.wifiReady) ? t.accent : t.muted }]} />
         <View style={{ flex: 1 }}><Text style={styles.connectionTitle}>{connectionLabel}</Text>
           <Text style={styles.hint}>{r.mode === 'ir' ? 'Pointez le haut du téléphone vers la TV' : 'Connexion locale · aucun compte LG'}</Text></View>
         <Icon name="right" size={20} color={t.muted} />
-      </Pressable>
+      </FeedbackPressable>
       {!!notice && <View style={styles.notice} accessibilityLiveRegion="polite"><Text style={[s.muted, { flex: 1, color: t.danger }]}>{notice}</Text>
         {!!r.error && <Key label="Masquer le message" icon="close" onPress={r.clearError} style={{ minHeight: 48 }} />}</View>}
 
@@ -105,13 +106,13 @@ function RemoteScreen() {
       <Key label={r.scanning ? 'Annuler la recherche' : 'Rechercher une TV'} icon={r.scanning ? 'close' : 'search'} caption accent
         onPress={() => r.scanning ? r.stopScan() : void r.scan()} />
       {r.scanning && <View style={s.row}><ActivityIndicator color={t.accent} /><Text style={s.muted}>Recherche sur le Wi-Fi…</Text></View>}
-      {r.devices.map(tv => <Pressable key={tv.host} accessibilityRole="button" disabled={tv.protocol !== 'webos'}
+      {r.devices.map(tv => <FeedbackPressable key={tv.host} accessibilityRole="button" disabled={tv.protocol !== 'webos'}
         accessibilityState={{ disabled: tv.protocol !== 'webos' }} accessibilityLabel={'Connecter ' + tv.label}
         onPress={() => r.connect(tv.host)} style={styles.device}>
         <Icon name="tv" color={t.accent} /><View style={styles.flex}><Text style={s.text}>{tv.label}</Text>
           <Text style={s.muted}>{tv.protocol === 'webos' ? 'Toucher pour jumeler' : 'NetCast : utilisez l’IR, protocole non pris en charge'}</Text></View>
         {tv.protocol === 'webos' && <Icon name="right" />}
-      </Pressable>)}
+      </FeedbackPressable>)}
       {r.scanned && !r.devices.length && <Text style={s.muted}>Aucune TV détectée. La box peut bloquer la découverte : essayez l’adresse IP ci-dessous.</Text>}
       <Text style={s.text}>Connexion manuelle</Text>
       <TextInput accessibilityLabel="Adresse IP de la TV" placeholder="192.168.1.20" placeholderTextColor={t.muted}
@@ -143,9 +144,10 @@ function RemoteScreen() {
       <View style={s.row}>{(['RED', 'GREEN', 'YELLOW', 'BLUE'] as const).map((command, i) =>
         <Key key={command} label={['Rouge', 'Vert', 'Jaune', 'Bleu'][i]} disabled={!r.available(command)}
           onPress={() => void r.send(command)} style={{ flex: 1, borderBottomWidth: 4, borderBottomColor: ['#E58C87', '#92CDA1', '#E2C779', '#8DAFE9'][i] }} />)}</View>
-      <View style={s.row}><View style={styles.flex}><Text style={s.text}>Retour haptique</Text><Text style={s.muted}>Un retour discret à chaque commande.</Text></View>
+      <View style={s.row}><View style={styles.flex}><Text style={s.text}>Retour haptique</Text><Text style={s.muted}>Une vibration légère dès l’appui, sans attendre la TV.</Text></View>
         <Switch accessibilityLabel="Retour haptique" value={r.haptics} onValueChange={r.toggleHaptics} trackColor={{ true: t.accent }} /></View>
-      <Text style={s.muted}>Appui prolongé : flèches, volume et chaînes. Les commandes s’arrêtent au relâchement ou quand l’application passe en arrière-plan.</Text>
+      <Text style={s.muted}>Flèches, volume et chaînes : première commande dès l’appui, puis répétition si vous maintenez. Les autres touches agissent au relâchement, sans maintien nécessaire. Marche/arrêt ne se répète jamais.</Text>
+      <Text style={s.muted}>La vibration confirme le toucher, pas la réception par la TV. Les répétitions s’arrêtent au relâchement, au changement de panneau ou en arrière-plan.</Text>
       <Text style={s.muted}>Aucun compte, publicité ou suivi. Le jumelage et les préférences restent sur ce téléphone. Le Wi-Fi ancien utilise une liaison locale non chiffrée.</Text>
     </Sheet>
     <Sheet title="Sources TV" visible={r.panel === 'inputs'} onClose={close}>
@@ -154,7 +156,7 @@ function RemoteScreen() {
         <Text style={s.muted}>Aucune source renvoyée par la TV.</Text>}
       {!!r.error && <Text style={[s.muted, { color: t.danger }]}>{r.error}</Text>}
     </Sheet>
-  </SafeAreaView>;
+  </SafeAreaView></FeedbackProvider>;
 }
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: t.bg },

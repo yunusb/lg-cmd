@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import * as Haptics from 'expo-haptics';
 import { canTransmitIR, transmitIR } from '../modules/lg-infrared';
 import { IR_CODES, type RemoteKey } from './remote-keys';
 import { INITIAL, WebOsClient, needsPointer, type Socket, type TvInput } from './core/webos';
@@ -72,7 +71,6 @@ export function useRemote() {
     setHaptics(enabled);
     void SecureStore.setItemAsync('lg_haptics', enabled ? 'on' : 'off').catch(() => {});
   };
-  const feedback = () => { if (haptics) void Haptics.selectionAsync().catch(() => {}); };
   const stopScan = () => { scanId.current++; cancelDiscovery(); setScanning(false); };
   const scan = async () => {
     const id = ++scanId.current;
@@ -103,7 +101,8 @@ export function useRemote() {
       if (mode === 'ir') await transmitIR(IR_CODES[key]);
       else if (key === 'SOURCE') { await showInputs(); return; }
       else await client.send(key);
-      if (mounted.current) { feedback(); setError(''); }
+      // Tactile feedback belongs to touch-down, not completion of an IR/Wi-Fi command.
+      if (mounted.current) setError('');
     } catch (e) { report(e); }
     finally { commandBusy.current = false; }
   };
@@ -113,7 +112,7 @@ export function useRemote() {
     forget: () => { void client.forget(ip).catch(report); },
     settings: () => { try { openWifiSettings(); } catch (e) { report(e); } },
     switchInput: async (id: string) => {
-      try { await client.switchInput(id); if (mounted.current) { setPanel(null); feedback(); } } catch (e) { report(e); }
+      try { await client.switchInput(id); if (mounted.current) setPanel(null); } catch (e) { report(e); }
     },
   };
 }

@@ -1,30 +1,60 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, AppState, KeyboardAvoidingView, Modal, Platform, Pressable,
-  ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+  ScrollView, StyleSheet, Text, View, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { HoldRepeater } from '../core/hold';
+import { PressSession } from '../core/press';
+import { useTouchFeedback } from './Feedback';
 import { Icon, type IconName } from './Icon';
 import { theme as t } from './theme';
+
+/** Shared event wiring for remote keys and ordinary UI buttons. */
+function usePressHandlers(action: () => void, disabled = false, repeat = false) {
+  const { feedback, interactionKey } = useTouchFeedback();
+  const [session] = useState(() => new PressSession());
+  const previousKey = useRef(interactionKey);
+  const options = () => ({ action, feedback, repeat,
+    disabled: disabled || (AppState.currentState !== null && AppState.currentState !== 'active') });
+  useLayoutEffect(() => {
+    if (disabled || previousKey.current !== interactionKey) session.cancel();
+    previousKey.current = interactionKey;
+  }, [disabled, interactionKey, session]);
+  useEffect(() => {
+    const state = AppState.addEventListener('change', next => { if (next !== 'active') session.cancel(); });
+    const blur = AppState.addEventListener('blur', () => session.cancel());
+    return () => { state.remove(); blur.remove(); session.cancel(); };
+  }, [session]);
+  return {
+    onTouchStart: () => session.begin(),
+    onTouchEnd: () => session.touchEnd(),
+    onTouchCancel: () => session.cancel(),
+    onBlur: () => session.cancel(),
+    onPressIn: () => session.pressIn(options()),
+    onPressOut: () => session.pressOut(),
+    onPress: () => session.press(options()),
+    accessibilityActions: [{ name: 'activate' as const }],
+    onAccessibilityAction: (event: { nativeEvent: { actionName: string } }) => {
+      if (event.nativeEvent.actionName === 'activate') session.activate(options());
+    },
+  };
+}
+
+type FeedbackPressableProps = Omit<PressableProps,
+  'onPress' | 'onPressIn' | 'onPressOut' | 'onTouchStart' | 'onTouchEnd' | 'onTouchCancel' |
+  'onBlur' | 'accessibilityActions' | 'onAccessibilityAction'> & { onPress: () => void };
+export function FeedbackPressable({ onPress, disabled, ...props }: FeedbackPressableProps) {
+  const handlers = usePressHandlers(onPress, disabled ?? false);
+  return <Pressable {...props} {...handlers} disabled={disabled} />;
+}
 
 export function Key({ label, icon, text, onPress, disabled = false, repeat = false,
   accent = false, danger = false, caption = false, style }: {
   label: string; icon?: IconName; text?: string; onPress: () => void; disabled?: boolean;
   repeat?: boolean; accent?: boolean; danger?: boolean; caption?: boolean; style?: StyleProp<ViewStyle>;
 }) {
-  const action = useRef(onPress); action.current = onPress;
-  const hold = useRef(new HoldRepeater()).current;
-  const repeated = useRef(false);
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', state => { if (state !== 'active') hold.stop(); });
-    return () => { subscription.remove(); hold.stop(); };
-  }, [hold]);
-  useEffect(() => { if (disabled) hold.stop(); }, [disabled, hold]);
+  const handlers = usePressHandlers(onPress, disabled, repeat);
   const color = accent ? t.ink : danger ? t.danger : t.text;
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }}
+  return <Pressable {...handlers} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }}
     testID={'key-' + label} disabled={disabled}
-    onPressIn={() => { repeated.current = false; if (repeat) hold.start(() => { repeated.current = true; action.current(); }); }}
-    onPressOut={() => hold.stop()}
-    onPress={() => { if (!repeated.current) action.current(); }}
     style={({ pressed }) => [s.key, accent && { backgroundColor: t.accent }, danger && { backgroundColor: t.dangerBg },
       style, disabled && { opacity: 0.38 }, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]}>
     {icon ? <Icon name={icon} color={color} /> : <Text style={[s.keyText, { color }, !text && label.length > 2 ? { fontSize: 14 } : null]}>{text ?? label}</Text>}

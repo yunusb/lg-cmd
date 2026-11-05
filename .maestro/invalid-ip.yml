@@ -1,0 +1,14 @@
+appId: com.yunusb.lgcmd
+---
+- launchApp:
+    clearState: true
+- tapOn: "Configurer la connexion"
+- scrollUntilVisible:
+    element: "Adresse IP de la TV"
+- tapOn: "Adresse IP de la TV"
+- inputText: "8.8.8.8"
+- hideKeyboard
+- tapOn: "Connecter cette TV"
+- assertVisible: "Saisissez une adresse IP locale.*"
+- back
+- assertVisible: "LG Remote"

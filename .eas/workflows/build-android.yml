@@ -1,10 +1,9 @@
 name: Build Android APK
-
 on:
   push:
     branches:
       - main
-
+      - ui-ux-wifi-v2
 jobs:
   build_android:
     type: build

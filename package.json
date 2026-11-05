@@ -1,21 +1,30 @@
 {
   "name": "lg-cmd",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "main": "index.ts",
+  "engines": {
+    "node": ">=22.16.0"
+  },
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test:coverage": "node --experimental-strip-types --experimental-test-coverage --test-coverage-include=\"src/core/*.ts\" --test-coverage-lines=85 --test tests/*.test.mjs",
+    "verify": "npm run test:coverage && npm run check && npx expo install --check",
     "build:apk": "eas build --platform android --profile preview",
-    "build:dev": "eas build --platform android --profile development",
-    "eas-build-pre-install": "npm install --package-lock-only --ignore-scripts --no-audit --no-fund"
+    "eas-build-pre-install": "node scripts/prepare-lock.cjs",
+    "eas-build-post-install": "npm run verify"
   },
   "dependencies": {
     "expo": "~57.0.31",
     "expo-secure-store": "~57.0.4",
+    "expo-haptics": "~57.0.1",
     "react": "19.2.3",
-    "react-native": "0.86.3"
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4"
   },
   "devDependencies": {
     "@types/react": "~19.2.0",

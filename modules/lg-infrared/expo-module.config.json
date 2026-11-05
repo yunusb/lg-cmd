@@ -1,10 +1,6 @@
 {
-  "platforms": [
-    "android"
-  ],
+  "platforms": ["android"],
   "android": {
-    "modules": [
-      "expo.modules.lginfrared.LgInfraredModule"
-    ]
+    "modules": ["expo.modules.lginfrared.LgInfraredModule", "expo.modules.lginfrared.LgDiscoveryModule"]
   }
 }

@@ -1,0 +1,17 @@
+appId: com.yunusb.lgcmd
+---
+- launchApp:
+    clearState: true
+- assertVisible: "LG Remote"
+- tapOn: "Chiffres"
+- assertVisible: "1"
+- assertVisible: "0"
+- tapOn: "Fermer"
+- tapOn: "Lecture"
+- assertVisible: "Lire"
+- tapOn: "Fermer"
+- tapOn: "Plus"
+- assertVisible: "Retour haptique"
+- tapOn: "Retour haptique"
+- tapOn: "Fermer"
+- takeScreenshot: remote-home

@@ -63,8 +63,10 @@ class LgDiscoveryModule : Module() {
     val socket = DatagramSocket(null)
     val found = linkedMapOf<String, Map<String, String>>()
     val webos = "urn:lge-com:service:webos-second-screen:1"
-    val netcast = "urn:lge-com:service:netrcu:1"
-    val services = listOf(webos, netcast)
+    // UDAP is the primary NetCast SSDP service; retain the legacy alias.
+    val netcast = "urn:schemas-udap:service:netrcu:1"
+    val netcastAlias = "urn:lge-com:service:netrcu:1"
+    val services = listOf(webos, netcast, netcastAlias)
     val wanted = preferredId.trim().lowercase(Locale.ROOT).substringBefore("::")
     try {
       socket.reuseAddress = true

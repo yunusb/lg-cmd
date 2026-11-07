@@ -4,7 +4,8 @@ import { discoveredTVs, stableTvId } from '../src/core/network.ts';
 import { PREFERRED_TV_KEY, loadPreferredTv, rememberTv, findPreferredTv } from '../src/core/tvMemory.ts';
 
 const WEBOS = 'urn:lge-com:service:webos-second-screen:1';
-const NETCAST = 'urn:lge-com:service:netrcu:1';
+const NETCAST = 'urn:schemas-udap:service:netrcu:1';
+const NETCAST_ALIAS = 'urn:lge-com:service:netrcu:1';
 
 test('SSDP stable identity ignores service suffix and case', () => {
   assert.equal(stableTvId('UUID:AABB-0011::urn:lge-com:service:webos-second-screen:1'), 'uuid:aabb-0011');
@@ -98,4 +99,19 @@ test('discovery gate never acquires multicast resources in background', async ()
   assert.equal(shouldBeginDiscovery({ ...data, connectionState:'pin' }), false);
   assert.equal(shouldBeginDiscovery({ ...data, connectionState:'pairing' }), false);
   assert.equal(shouldBeginDiscovery({ ...data, connectionState:'connecting' }), false);
+});
+
+test('real NetCast UDAP SSDP namespace and legacy alias are both classified as NetCast', () => {
+  const devices = discoveredTVs([
+    { host: '192.168.1.21', service: NETCAST, id: 'uuid:old-one' },
+    { host: '192.168.1.22', service: NETCAST_ALIAS, id: 'uuid:old-two' },
+  ]);
+  assert.equal(devices.length, 2);
+  assert.ok(devices.every(d => d.protocol === 'netcast'));
+  assert.ok(devices.every(d => d.label.includes('NetCast')));
+});
+test('a NetCast device is never mistaken for webOS or automatically paired as webOS', () => {
+  const devices = discoveredTVs([{ host: '192.168.1.33', service: NETCAST, id: 'uuid:netcast-only' }]);
+  assert.equal(devices[0].protocol, 'netcast');
+  assert.equal(findPreferredTv({ id: 'uuid:netcast-only', host: '192.168.1.33' }, devices), null);
 });

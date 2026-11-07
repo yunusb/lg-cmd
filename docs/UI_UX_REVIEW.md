@@ -50,3 +50,14 @@ Comparer 1.0 et 1.1 sur POCO F3 : temps jusqu'à la première commande, nombre d
 Les commandes réelles de la télécommande (alimentation IR, OK, retour, accueil, chiffres, sources, audio et médias) partent dès `onPressIn`, au toucher, et non à `onPress` lors du relâchement. Seules les touches flèches/volume/chaînes se répètent après le seuil de maintien. L’alimentation Wi-Fi conserve la confirmation au relâchement, comme les boutons de navigation de l’application, afin de limiter les déclenchements accidentels. Une touche tenue n’émet qu’un premier signal immédiat, sauf si elle est explicitement répétable.
 
 Le retour haptique léger est délivré dès le contact via `expo-haptics` (Android `Virtual_Key`), indépendamment de la réussite de l’envoi IR. Il n’est émis qu’une fois par geste, pas à chaque répétition, et se désactive dans **Plus → Retour haptique**. Le retour dépend des réglages vibratoires du téléphone. Les touches désactivées ne vibrent pas.
+
+
+## Deuxième revue contradictoire — découverte réseau (7 novembre 2026)
+
+**Protocole :** le premier parcours doit être « Rechercher la TV » sans champ IP. Le protocole standard utilisé par les anciennes webOS est la découverte SSDP, puis un jumelage SSAP local. Le téléphone n'a pas besoin de rejoindre le Wi-Fi Direct de la TV ; il utilise le réseau domestique déjà actif. La TV peut être reliée en Ethernet à la même box. Le premier appairage doit toujours être approuvé sur la TV.
+
+**Défaut identifié dans le code :** la découverte NetCast utilisait uniquement `urn:lge-com:service:netrcu:1`, alors que des implémentations LG NetCast/UDAP utilisent `urn:schemas-udap:service:netrcu:1`. Cela pouvait masquer une ancienne TV connectée et présenter « aucune TV détectée » à tort. Le module Android recherche maintenant les deux signatures NetCast en plus de webOS. Les appareils NetCast sont clairement affichés comme détectés mais non pilotables en Wi-Fi par notre client SSAP, plutôt que d'essayer une commande incompatible.
+
+**Contrôle de sécurité :** seules les réponses SSDP avec signature exacte sont acceptées ; aucun lien `LOCATION` provenant d'un appareil non fiable n'est ouvert. Les clés de jumelage sont conservées sur le téléphone. La recherche est bornée, au premier plan, et la saisie IP reste dans les options avancées. Le résultat de la recherche ne doit pas être présenté comme une preuve que la TV est pilotable.
+
+**Limites ouvertes :** cette correction ne constitue pas une implémentation du protocole UDAP/NetCast. La prise en charge réelle de la TV 2015 reste à confirmer par son modèle exact ou par une tentative d'association webOS sur le réseau local. Une découverte SSDP ne garantit pas l'absence d'isolation Wi-Fi invité, de pare-feu, ou de restrictions du firmware.

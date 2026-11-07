@@ -24,7 +24,10 @@ export function safePointerURL(value: unknown, host: string): value is string {
 
 export type TvDevice = { host: string; id: string; label: string; protocol: 'webos' | 'netcast' };
 const WEBOS = 'urn:lge-com:service:webos-second-screen:1';
-const NETCAST = 'urn:lge-com:service:netrcu:1';
+// LG NetCast/UDAP uses the schemas-udap namespace. Older integrations also
+// advertise an lge-com alias; accept either, but never confuse them with webOS.
+const NETCAST = 'urn:schemas-udap:service:netrcu:1';
+const NETCAST_ALIAS = 'urn:lge-com:service:netrcu:1';
 
 /** Accept only typed LG responses, never generic UPnP renderers as confirmed LG. */
 export function discoveredTVs(raw: unknown): TvDevice[] {
@@ -34,7 +37,7 @@ export function discoveredTVs(raw: unknown): TvDevice[] {
     if (!item || typeof item !== 'object' || typeof item.host !== 'string') continue;
     const host = localIPv4(item.host);
     const service = typeof item.service === 'string' ? item.service.trim().toLowerCase() : '';
-    const protocol = service === WEBOS ? 'webos' : service === NETCAST ? 'netcast' : null;
+    const protocol = service === WEBOS ? 'webos' : (service === NETCAST || service === NETCAST_ALIAS) ? 'netcast' : null;
     if (!host || !protocol || (byHost.get(host)?.protocol === 'webos' && protocol === 'netcast')) continue;
     const id = stableTvId(item.id) ?? host;
     byHost.set(host, {

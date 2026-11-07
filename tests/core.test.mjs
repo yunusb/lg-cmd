@@ -50,8 +50,9 @@ test('NetCast discovery is explicitly distinct', () => {
   assert.deepEqual(discoveredTVs(null), []); assert.deepEqual(discoveredTVs({}), []);
 });
 test('discovery ignores huge lists and truncates peer identifiers', () => {
-  const list = Array.from({ length: 200 }, (_, n) => ({ host: `10.0.0.${n}`, service: 'webos-second-screen', id: 'a'.repeat(500) }));
-  assert.equal(discoveredTVs(list).length, 100); assert.equal(discoveredTVs(list)[0].id.length, 200);
+  const list = Array.from({ length: 200 }, (_, n) => ({ host: `10.0.0.${n}`, service: 'urn:lge-com:service:webos-second-screen:1', id: 'a'.repeat(500) }));
+  assert.equal(discoveredTVs(list).length, 100);
+  assert.equal(discoveredTVs(list)[0].id, '10.0.0.0'); // hostile oversized USN ignored
 });
 test('hold waits before repeating and stops immediately on release', () => {
   const clock = new Clock(); const hold = new HoldRepeater(clock); let count = 0;

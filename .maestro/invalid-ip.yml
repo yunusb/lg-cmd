@@ -2,13 +2,17 @@ appId: com.yunusb.lgcmd
 ---
 - launchApp:
     clearState: true
-- tapOn: "Configurer la connexion"
+- tapOn: "Mode Wi-Fi"
+- assertVisible: "Trouver votre télévision"
+- assertVisible: "Connexion Wi-Fi automatique"
+- assertNotVisible: "Adresse IP locale de la télévision"
+- tapOn: "Ma TV n’apparaît pas · Options avancées"
 - scrollUntilVisible:
-    element: "Adresse IP de la TV"
-- tapOn: "Adresse IP de la TV"
+    element: "Adresse IP locale de la télévision"
+- tapOn: "Adresse IP locale de la télévision"
 - inputText: "8.8.8.8"
 - hideKeyboard
-- tapOn: "Connecter cette TV"
-- assertVisible: "Saisissez une adresse IP locale.*"
+- tapOn: "Connexion manuelle"
+- assertVisible: "Cette adresse locale n’est pas valide."
 - back
 - assertVisible: "LG Remote"

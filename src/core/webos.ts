@@ -1,5 +1,5 @@
 import type { RemoteKey } from '../remote-keys.ts';
-import { localIPv4, safePointerURL } from './network.ts';
+import { localIPv4, safePointerURL, stableTvId } from './network.ts';
 import { scheduler, type Scheduler } from './hold.ts';
 
 type Json = Record<string, unknown>;
@@ -40,6 +40,7 @@ export class WebOsClient {
   private generation = 0;
   private sequence = 0;
   private host = '';
+  private pairedId: string | null = null;
   private timer: unknown;
   private pointerTimer: unknown;
   private registered = false;
@@ -55,7 +56,12 @@ export class WebOsClient {
     this.onState = options.onState; this.clock = options.clock ?? scheduler;
   }
   private emit(state: State, message: string) { this.onState({ state, message, navigation: this.pointerReady }); }
-  private key(ip = this.host) { return 'lg_key_' + ip.replace(/\./g, '_'); }
+  private key(ip = this.host) {
+    // A stable SSDP identity survives DHCP changes and avoids keying solely on IP.
+    return this.pairedId
+      ? 'lg_webos_key_' + this.pairedId.replace(/[^a-z0-9]/gi, '_')
+      : 'lg_key_' + ip.replace(/\./g, '_');
+  }
   private clearSocket(socket?: Socket) {
     if (!socket) return;
     socket.onopen = socket.onclose = socket.onerror = socket.onmessage = null;
@@ -64,6 +70,7 @@ export class WebOsClient {
   private reset() {
     this.generation++; this.clock.cancel(this.timer); this.clock.cancel(this.pointerTimer);
     this.registered = this.pointerReady = false;
+    this.pairedId = null;
     this.clearSocket(this.socket); this.clearSocket(this.navigation);
     this.socket = this.navigation = undefined;
     for (const p of this.pending.values()) { this.clock.cancel(p.timer); p.reject(new Error('Connexion fermée.')); }
@@ -72,8 +79,9 @@ export class WebOsClient {
   disconnect() { this.reset(); this.emit('idle', 'Wi-Fi déconnecté.'); }
   private fail(message: string) { this.reset(); this.emit('error', message); }
 
-  async connect(value: string) {
+  async connect(value: string, deviceId?: string) {
     this.reset();
+    this.pairedId = stableTvId(deviceId);
     const host = localIPv4(value);
     if (!host) { this.emit('error', 'Saisissez une adresse IP locale, par exemple 192.168.1.20.'); return; }
     this.host = host;
@@ -207,8 +215,15 @@ export class WebOsClient {
     }));
   }
   async switchInput(id: string) { await this.request('tv/switchInput', { inputId: id }); }
-  async forget(value: string) {
-    this.disconnect(); const host = localIPv4(value);
-    if (host) await this.storage.deleteItemAsync(this.key(host));
+  async forget(value: string, deviceId?: string) {
+    this.disconnect();
+    const host = localIPv4(value);
+    if (!host) return;
+    const stableId = stableTvId(deviceId);
+    // Clear the stable and any legacy IP-based key without destroying other TV keys.
+    if (stableId) {
+      await this.storage.deleteItemAsync('lg_webos_key_' + stableId.replace(/[^a-z0-9]/gi, '_'));
+    }
+    await this.storage.deleteItemAsync('lg_key_' + host.replace(/\./g, '_'));
   }
 }

@@ -3,7 +3,7 @@
     "name": "LG Remote",
     "slug": "lg-cmd",
     "scheme": "lgcmd",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "platforms": [
       "android"
@@ -12,7 +12,7 @@
     "newArchEnabled": true,
     "android": {
       "package": "com.yunusb.lgcmd",
-      "versionCode": 3,
+      "versionCode": 4,
       "allowBackup": false,
       "permissions": [
         "android.permission.INTERNET",

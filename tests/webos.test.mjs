@@ -206,3 +206,45 @@ test('all exposed pointer buttons use an explicit safe whitelist', async t => {
   assert.equal(h.sockets[1].frames.length, 22);
   await assert.rejects(h.client.send('INJECT\nname:POWER'), /non prise en charge/);
 });
+
+test('stored key follows a stable SSDP UUID when the TV DHCP address changes', async t => {
+  const h = setup(t);
+  await h.client.connect('192.168.1.12', 'uuid:ABCDEF::urn:lge-com:service:webos-second-screen:1');
+  const ws = h.sockets[0]; ws.open();
+  ws.message({ id: 'register', type: 'registered', payload: { 'client-key': 'private-token' } });
+  await flush();
+  assert.equal(h.values.get('lg_webos_key_uuid_abcdef'), 'private-token');
+  h.client.disconnect();
+  await h.client.connect('192.168.1.88', 'uuid:abcdef');
+  h.sockets[1].open();
+  assert.equal(h.sockets[1].last().payload['client-key'], 'private-token');
+  assert.equal(h.sockets[1].url, 'ws://192.168.1.88:3000/');
+});
+
+test('stored key is never reused for an unrelated SSDP identity on the same IP', async t => {
+  const h = setup(t);
+  h.values.set('lg_webos_key_uuid_oldtv', 'keep-for-old-tv');
+  h.values.set('lg_key_192_168_1_12', 'legacy-key');
+  await h.client.connect('192.168.1.12', 'uuid:NEWTV');
+  h.sockets[0].open();
+  assert.equal(h.sockets[0].last().payload['client-key'], undefined);
+});
+
+test('forgetting a paired TV deletes stable and legacy keys, not other TVs', async t => {
+  const h = setup(t);
+  h.values.set('lg_webos_key_uuid_tv1', 'forget');
+  h.values.set('lg_key_192_168_1_12', 'legacy');
+  h.values.set('lg_webos_key_uuid_tv2', 'preserve');
+  await h.client.forget('192.168.1.12', 'uuid:tv1');
+  assert.equal(h.values.has('lg_webos_key_uuid_tv1'), false);
+  assert.equal(h.values.has('lg_key_192_168_1_12'), false);
+  assert.equal(h.values.get('lg_webos_key_uuid_tv2'), 'preserve');
+});
+
+test('manual IP connection keeps legacy key compatibility', async t => {
+  const h = setup(t);
+  h.values.set('lg_key_192_168_1_12', 'manual-key');
+  await h.client.connect('192.168.1.12');
+  h.sockets[0].open();
+  assert.equal(h.sockets[0].last().payload['client-key'], 'manual-key');
+});

@@ -26,6 +26,7 @@ export default function App() {
 }
 function RemoteScreen() {
   const r = useRemote();
+  const [advanced, setAdvanced] = React.useState(false);
   const key = (command: RemoteKey, label: string, icon?: IconName, repeat = false) =>
     <Key label={label} icon={icon} disabled={!r.available(command)} repeat={repeat} immediate
       onPress={() => void r.send(command)} style={{ flex: 1 }} />;
@@ -36,10 +37,10 @@ function RemoteScreen() {
     else void r.send('POWER');
   };
   const connectionLabel = r.mode === 'ir' ? r.irReady ? 'Infrarouge prêt' : 'Émetteur non détecté' :
-    r.wifiReady ? `TV connectée · ${r.ip}` : r.snapshot.state === 'pairing' ? 'À valider sur la TV' :
-    r.snapshot.state === 'connecting' ? 'Connexion en cours…' : 'Configurer le Wi-Fi';
+    r.wifiReady ? 'TV LG connectée en Wi-Fi' : r.snapshot.state === 'pairing' ? 'Autoriser sur la TV' :
+    r.snapshot.state === 'connecting' ? 'Connexion à la TV…' : r.scanning ? 'Recherche de la télévision…' : 'Trouver une TV LG';
   const notice = r.error || (r.mode === 'wifi' && r.snapshot.state === 'error' ? r.snapshot.message : '');
-  const close = () => { r.stopScan(); r.setPanel(null); };
+  const close = () => { r.closeConnection(); };
 
   return <FeedbackProvider enabled={r.haptics} interactionKey={`${r.mode}:${r.panel ?? 'remote'}`}><SafeAreaView style={styles.screen}>
     <StatusBar barStyle="light-content" />
@@ -61,11 +62,11 @@ function RemoteScreen() {
         </FeedbackPressable>)}
       </View>
 
-      <FeedbackPressable onPress={() => r.setPanel('connection')} accessibilityRole="button" accessibilityLabel="Configurer la connexion"
+      <FeedbackPressable onPress={r.openConnection} accessibilityRole="button" accessibilityLabel="Rechercher ou configurer une télévision LG"
         style={styles.connection}>
         <View style={[styles.dot, { backgroundColor: (r.mode === 'ir' ? r.irReady : r.wifiReady) ? t.accent : t.muted }]} />
         <View style={{ flex: 1 }}><Text style={styles.connectionTitle}>{connectionLabel}</Text>
-          <Text style={styles.hint}>{r.mode === 'ir' ? 'Pointez le haut du téléphone vers la TV' : 'Connexion locale · aucun compte LG'}</Text></View>
+          <Text style={styles.hint}>{r.mode === 'ir' ? 'Pointez le haut du téléphone vers la TV' : 'Même réseau domestique, sans adresse IP à saisir'}</Text></View>
         <Icon name="right" size={20} color={t.muted} />
       </FeedbackPressable>
       {!!notice && <View style={styles.notice} accessibilityLiveRegion="polite"><Text style={[s.muted, { flex: 1, color: t.danger }]}>{notice}</Text>
@@ -100,34 +101,74 @@ function RemoteScreen() {
       <Text style={styles.footer}>LG CMD 1.1 · Télécommande non officielle</Text>
     </ScrollView>
 
-    <Sheet title="Connexion à la TV" visible={r.panel === 'connection'} onClose={close}>
-      <Text style={s.text}>Wi-Fi local, sans compte</Text>
-      <Text style={s.muted}>Allumez la TV. Connectez-la à la même box que le téléphone (Wi-Fi ou câble Ethernet), puis activez « LG Connect Apps » si ce réglage existe.</Text>
-      <Key label={r.scanning ? 'Annuler la recherche' : 'Rechercher une TV'} icon={r.scanning ? 'close' : 'search'} caption accent
-        onPress={() => r.scanning ? r.stopScan() : void r.scan()} />
-      {r.scanning && <View style={s.row}><ActivityIndicator color={t.accent} /><Text style={s.muted}>Recherche sur le Wi-Fi…</Text></View>}
-      {r.devices.map(tv => <FeedbackPressable key={tv.host} accessibilityRole="button" disabled={tv.protocol !== 'webos'}
-        accessibilityState={{ disabled: tv.protocol !== 'webos' }} accessibilityLabel={'Connecter ' + tv.label}
-        onPress={() => r.connect(tv.host)} style={styles.device}>
-        <Icon name="tv" color={t.accent} /><View style={styles.flex}><Text style={s.text}>{tv.label}</Text>
-          <Text style={s.muted}>{tv.protocol === 'webos' ? 'Toucher pour jumeler' : 'NetCast : utilisez l’IR, protocole non pris en charge'}</Text></View>
-        {tv.protocol === 'webos' && <Icon name="right" />}
-      </FeedbackPressable>)}
-      {r.scanned && !r.devices.length && <Text style={s.muted}>Aucune TV détectée. La box peut bloquer la découverte : essayez l’adresse IP ci-dessous.</Text>}
-      <Text style={s.text}>Connexion manuelle</Text>
-      <TextInput accessibilityLabel="Adresse IP de la TV" placeholder="192.168.1.20" placeholderTextColor={t.muted}
-        value={r.ip} onChangeText={r.setIp} autoCapitalize="none" autoCorrect={false} keyboardType="decimal-pad"
-        maxLength={15} style={styles.input} returnKeyType="done" onSubmitEditing={() => r.connect()} />
-      <Key label={['connecting', 'pairing'].includes(r.snapshot.state) ? 'Annuler la connexion' : 'Connecter cette TV'}
-        onPress={() => ['connecting', 'pairing'].includes(r.snapshot.state) ? r.disconnect() : r.connect()} />
-      <Text style={s.muted} accessibilityLiveRegion="polite">{r.snapshot.message}</Text>
+    <Sheet title="Trouver votre télévision" visible={r.panel === 'connection'} onClose={close}>
+      <Text style={s.text} accessibilityRole="header">Connexion Wi-Fi automatique</Text>
+      <Text style={s.muted}>Allumez la télévision. Elle doit être connectée à la même box que ce téléphone, en Wi-Fi ou par câble réseau.</Text>
+      {r.scanning && <View style={s.row} accessibilityLiveRegion="polite">
+        <ActivityIndicator color={t.accent} />
+        <View style={styles.flex}><Text style={s.text}>Recherche des TV LG…</Text>
+          <Text style={s.muted}>Cela prend généralement quelques secondes.</Text></View>
+        <Key label="Arrêter la recherche" icon="close" onPress={() => r.stopScan(true)} />
+      </View>}
+      {r.devices.map((tv, i) =>
+        <FeedbackPressable key={tv.id + tv.host} accessibilityRole="button" disabled={tv.protocol !== 'webos'}
+          accessibilityState={{ disabled: tv.protocol !== 'webos' }}
+          accessibilityLabel={tv.protocol === 'webos' ? 'Associer ' + tv.label + ', télévision numéro ' + (i + 1) : 'LG NetCast, télécommande réseau non compatible'}
+          onPress={() => r.connectDevice(tv)} style={styles.device}>
+          <Icon name="tv" color={tv.protocol === 'webos' ? t.accent : t.muted} />
+          <View style={styles.flex}>
+            <Text style={s.text}>{tv.label}{r.devices.length > 1 ? ' ' + (i + 1) : ''}</Text>
+            <Text style={s.muted}>{tv.protocol === 'webos' ?
+              'Touchez pour jumeler avec cette télévision' :
+              'Ancien système NetCast : utilisez l’infrarouge'}</Text>
+          </View>
+          {tv.protocol === 'webos' && <Icon name="right" />}
+        </FeedbackPressable>
+      )}
+      {r.scanned && !r.scanning && !r.devices.length && !r.scanCancelled && !r.error &&
+        <View style={styles.help}>
+          <Text style={s.text}>Aucune TV LG détectée</Text>
+          <Text style={s.muted}>Vérifiez que la TV est allumée et reliée à la même box. Évitez le réseau Wi-Fi « invité » et désactivez l’isolement des appareils dans la box si nécessaire.</Text>
+        </View>
+      }
+      {r.scanCancelled && <Text style={s.muted}>Recherche interrompue. Vous pouvez la relancer.</Text>}
+      {r.scanned && !r.scanning && r.hasSavedTv && !r.wifiReady &&
+        <View style={styles.help}>
+          <Text style={s.text}>Télévision déjà associée ?</Text>
+          <Text style={s.muted}>Si la recherche n’a pas trouvé votre TV, essayez de la retrouver à sa dernière adresse enregistrée. Vous n’avez rien à saisir.</Text>
+          <Key label="Réessayer ma TV enregistrée" icon="tv" onPress={r.retryPreferred} />
+        </View>}
+      {!r.scanning && <Key label="Relancer la recherche" icon="search" caption onPress={() => void r.scan(false)} />}
+      {['pairing', 'connecting', 'connected', 'limited', 'error'].includes(r.snapshot.state) && (
+        <View style={styles.help}>
+          <Text style={s.text} accessibilityLiveRegion="polite">{r.snapshot.message}</Text>
+          {r.snapshot.state === 'pairing' && <Text style={s.muted}>
+            Acceptez la demande sur l’écran de la TV. Si besoin, utilisez l’infrarouge pour valider, puis revenez ici.
+          </Text>}
+          {r.snapshot.state === 'connecting' && <Key label="Annuler la connexion" onPress={r.disconnect} />}
+        </View>
+      )}
       {!!r.error && <Text style={[s.muted, { color: t.danger }]} accessibilityLiveRegion="polite">{r.error}</Text>}
-      {r.wifiReady && <Key label="Déconnecter" onPress={r.disconnect} />}
-      <View style={s.row}><Key label="Réglages Wi-Fi" icon="wifi" caption onPress={r.settings} style={styles.flex} />
-        <Key label="Oublier le jumelage" icon="close" caption onPress={() => Alert.alert('Oublier le jumelage ?',
-          'La TV demandera une nouvelle autorisation.', [{ text: 'Annuler', style: 'cancel' }, { text: 'Oublier', onPress: r.forget }])} style={styles.flex} /></View>
-      <Text style={s.muted}>Wi-Fi Direct n’est pas un mode de télécommande garanti. Cette version cible webOS ancien via le port local 3000 ; NetCast et les TV imposant TLS ne sont pas encore pris en charge. Pas d’ouverture de port sur Internet.</Text>
-      <Text style={s.muted}>Pendant la demande de jumelage, fermez ce panneau et passez en IR pour valider sur la TV. Le jumelage Wi-Fi reste actif.</Text>
+      {r.wifiReady && <Key label="Déconnecter la TV" onPress={r.disconnect} />}
+      <Key label="Ouvrir les réglages Wi-Fi du téléphone" icon="wifi" caption onPress={r.settings} />
+      <FeedbackPressable accessibilityRole="button" accessibilityLabel="Afficher les options avancées de connexion"
+        accessibilityState={{ expanded: advanced }} onPress={() => setAdvanced(!advanced)} style={styles.advanced}>
+        <Text style={[s.muted, { fontWeight: '600' }]}>{advanced ? 'Masquer les options avancées' : 'Ma TV n’apparaît pas · Options avancées'}</Text>
+        <Icon name={advanced ? 'up' : 'down'} size={18} color={t.muted} />
+      </FeedbackPressable>
+      {advanced && <View style={{ gap: 12 }}>
+        <Text style={s.muted}>En dernier recours, saisissez l’adresse IP locale de la TV. Cette étape n’est normalement pas nécessaire.</Text>
+        <TextInput accessibilityLabel="Adresse IP locale de la télévision" placeholder="192.168.1.20"
+          placeholderTextColor={t.muted} value={r.ip} onChangeText={r.setIp}
+          autoCapitalize="none" autoCorrect={false} keyboardType="decimal-pad"
+          maxLength={15} style={styles.input} returnKeyType="done" onSubmitEditing={r.manualConnect} />
+        <Key label="Connexion manuelle" onPress={r.manualConnect} />
+        <Key label="Oublier l’ancienne association" onPress={() => Alert.alert('Oublier la télévision ?',
+          'Vous devrez accepter un nouveau jumelage.', [
+            { text: 'Annuler', style: 'cancel' }, { text: 'Oublier', onPress: r.forget },
+          ])} />
+        <Text style={s.muted}>Cette version prend en charge les anciennes LG webOS sur le port local 3000. NetCast, les TV en Wi-Fi Direct uniquement et certains modèles webOS plus récents ne sont pas encore pilotables en Wi-Fi.</Text>
+      </View>}
     </Sheet>
 
     <Sheet title="Chiffres" visible={r.panel === 'numbers'} onClose={close}>
@@ -180,5 +221,7 @@ const styles = StyleSheet.create({
   bottom: { flexDirection: 'row', gap: 12, borderTopWidth: 1, borderColor: t.border, paddingTop: 16 },
   footer: { fontSize: 11, color: t.muted, textAlign: 'center' },
   device: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64, backgroundColor: t.raised, padding: 14, borderRadius: 16 },
+  help: { backgroundColor: t.raised, borderRadius: 16, padding: 16, gap: 8 },
+  advanced: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 50, paddingHorizontal: 6 },
   input: { minHeight: 56, borderWidth: 1, borderColor: t.border, borderRadius: 16, padding: 14, color: t.text, fontSize: 18 },
 });

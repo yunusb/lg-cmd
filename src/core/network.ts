@@ -9,24 +9,46 @@ export function localIPv4(value: string): string | null {
     (n[0] === 192 && n[1] === 168) || (n[0] === 169 && n[1] === 254) ? ip : null;
 }
 
+/** SSDP USN: stable UDN + optional service suffix, not a LAN address. */
+export function stableTvId(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 200) return null;
+  const match = /^uuid:([a-z0-9-]{1,96})(?:::.*)?$/i.exec(value.trim());
+  return match ? 'uuid:' + match[1].toLowerCase() : null;
+}
+
 export function safePointerURL(value: unknown, host: string): value is string {
   if (typeof value !== 'string' || value.length > 2048) return false;
   // Legacy webOS socket only; never disable TLS validation or follow another host.
-  return value.startsWith(`ws://${host}:3000/`) && !/[\s\\#]/.test(value);
+  return value.startsWith('ws://' + host + ':3000/') && !/[\s\\#]/.test(value);
 }
 
 export type TvDevice = { host: string; id: string; label: string; protocol: 'webos' | 'netcast' };
+const WEBOS = 'urn:lge-com:service:webos-second-screen:1';
+const NETCAST = 'urn:lge-com:service:netrcu:1';
+
+/** Accept only typed LG responses, never generic UPnP renderers as confirmed LG. */
 export function discoveredTVs(raw: unknown): TvDevice[] {
   if (!Array.isArray(raw)) return [];
-  const found = new Map<string, TvDevice>();
+  const byHost = new Map<string, TvDevice>();
   for (const item of raw.slice(0, 100)) {
     if (!item || typeof item !== 'object' || typeof item.host !== 'string') continue;
     const host = localIPv4(item.host);
-    const st = typeof item.service === 'string' ? item.service.toLowerCase() : '';
-    const protocol = st.includes('webos-second-screen') ? 'webos' : st.includes('netrcu') ? 'netcast' : null;
-    if (!host || !protocol || found.get(host)?.protocol === 'webos') continue;
-    found.set(host, { host, protocol, id: typeof item.id === 'string' ? item.id.slice(0, 200) : host,
-      label: `${protocol === 'webos' ? 'LG webOS' : 'LG NetCast'} · ${host}` });
+    const service = typeof item.service === 'string' ? item.service.trim().toLowerCase() : '';
+    const protocol = service === WEBOS ? 'webos' : service === NETCAST ? 'netcast' : null;
+    if (!host || !protocol || (byHost.get(host)?.protocol === 'webos' && protocol === 'netcast')) continue;
+    const id = stableTvId(item.id) ?? host;
+    byHost.set(host, {
+      id, host, protocol,
+      label: protocol === 'webos' ? 'Téléviseur LG · webOS' : 'Téléviseur LG · NetCast',
+    });
   }
-  return [...found.values()].sort((a, b) => a.host.localeCompare(b.host));
+  // SSDP can report the same UDN on wireless and wired interfaces. Prefer one per TV.
+  const byId = new Map<string, TvDevice>();
+  for (const device of byHost.values()) {
+    const existing = byId.get(device.id);
+    if (!existing || (device.protocol === 'webos' && existing.protocol !== 'webos')) {
+      byId.set(device.id, device);
+    }
+  }
+  return [...byId.values()].sort((a, b) => a.host.localeCompare(b.host));
 }

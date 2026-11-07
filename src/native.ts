@@ -1,14 +1,16 @@
 import { requireOptionalNativeModule } from 'expo';
 import { discoveredTVs } from './core/network';
 
-type Discovery = { discover: () => Promise<unknown>; cancel: () => void; openWifiSettings: () => void };
+type Discovery = { discover: (preferredId: string) => Promise<unknown>; cancel: () => void; openWifiSettings: () => void };
 const discovery = requireOptionalNativeModule<Discovery>('LgDiscovery');
-export async function discoverTVs() {
-  if (!discovery) throw new Error('La détection nécessite le nouvel APK, pas Expo Go.');
-  return discoveredTVs(await discovery.discover());
+
+/** Discover on the existing Wi-Fi network, never configure or join one. */
+export async function discoverTVs(preferredId?: string) {
+  if (!discovery) throw new Error('La recherche nécessite un APK Android récent, pas Expo Go.');
+  return discoveredTVs(await discovery.discover(preferredId ?? ''));
 }
 export function cancelDiscovery() { discovery?.cancel(); }
 export function openWifiSettings() {
-  if (!discovery) throw new Error('Les réglages Wi-Fi sont accessibles dans les paramètres Android.');
+  if (!discovery) throw new Error('Ouvrez les réglages Wi-Fi dans Android.');
   discovery.openWifiSettings();
 }

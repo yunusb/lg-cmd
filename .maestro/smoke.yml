@@ -2,6 +2,11 @@ appId: com.yunusb.lgcmd
 ---
 - launchApp:
     clearState: true
+- runFlow:
+    when:
+      visible: "Trouver votre télévision"
+    commands:
+      - back
 - assertVisible: "LG Remote"
 - tapOn: "Chiffres"
 - assertVisible: "1"
@@ -12,6 +17,5 @@ appId: com.yunusb.lgcmd
 - tapOn: "Fermer"
 - tapOn: "Plus"
 - assertVisible: "Retour haptique"
-- tapOn: "Retour haptique"
 - tapOn: "Fermer"
 - takeScreenshot: remote-home

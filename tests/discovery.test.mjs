@@ -82,3 +82,20 @@ test('all imported device IDs and descriptions are bounded', () => {
   const list = discoveredTVs([{ host:'192.168.1.2',service:WEBOS,id:'uuid:'+'A'.repeat(2000) }]);
   assert.equal(list[0].id,'192.168.1.2');
 });
+
+
+test('discovery gate never acquires multicast resources in background', async () => {
+  const { shouldBeginDiscovery } = await import('../src/core/discoveryPolicy.ts');
+  const data = { foreground:true, restored:true, panel:'connection', mode:'wifi', scanned:false,
+    scanning:false, wifiReady:false, connectionState:'idle' };
+  assert.equal(shouldBeginDiscovery(data), true);
+  assert.equal(shouldBeginDiscovery({ ...data, foreground:false }), false);
+  assert.equal(shouldBeginDiscovery({ ...data, mode:'ir' }), false);
+  assert.equal(shouldBeginDiscovery({ ...data, panel:null }), false);
+  assert.equal(shouldBeginDiscovery({ ...data, scanning:true }), false);
+  assert.equal(shouldBeginDiscovery({ ...data, scanned:true }), false);
+  assert.equal(shouldBeginDiscovery({ ...data, wifiReady:true }), false);
+  assert.equal(shouldBeginDiscovery({ ...data, connectionState:'pin' }), false);
+  assert.equal(shouldBeginDiscovery({ ...data, connectionState:'pairing' }), false);
+  assert.equal(shouldBeginDiscovery({ ...data, connectionState:'connecting' }), false);
+});

@@ -6,6 +6,7 @@ import { IR_CODES, type RemoteKey } from './remote-keys';
 import { INITIAL, WebOsClient, needsPointer, type Socket, type TvInput } from './core/webos';
 import { localIPv4, stableTvId, type TvDevice } from './core/network';
 import { findPreferredTv, loadPreferredTv, rememberTv, PREFERRED_TV_KEY, type PreferredTv } from './core/tvMemory';
+import { shouldBeginDiscovery } from './core/discoveryPolicy';
 import { cancelDiscovery, discoverTVs, openWifiSettings } from './native';
 
 export type Mode = 'ir' | 'wifi';
@@ -29,9 +30,11 @@ export function useRemote() {
   const [scanned, setScanned] = useState(false);
   const [scanCancelled, setScanCancelled] = useState(false);
   const [restored, setRestored] = useState(false);
+  const [foreground, setForeground] = useState(() => AppState.currentState !== 'background');
   const [inputs, setInputs] = useState<TvInput[]>([]);
   const [loadingInputs, setLoadingInputs] = useState(false);
   const mounted = useRef(true);
+  const appActive = useRef(AppState.currentState !== 'background');
   const preferred = useRef<PreferredTv | null>(null);
   const pendingChoice = useRef<TvDevice | null>(null);
   const scanId = useRef(0);
@@ -90,6 +93,7 @@ export function useRemote() {
   };
 
   const scan = async (autoConnectRemembered = false) => {
+    if (!appActive.current) return; // Never acquire multicast resources in background.
     if (scanActive.current) return; // Avoid overlapping Android multicast locks.
     scanActive.current = true;
     const id = ++scanId.current;
@@ -139,9 +143,12 @@ export function useRemote() {
 
     const subscription = AppState.addEventListener('change', state => {
       const current = stateRef.current;
-      if (state === 'background') {
+      appActive.current = state === 'active';
+      setForeground(appActive.current);
+      if (state !== 'active') {
         resumeWifi.current = current.mode === 'wifi' && ['connected', 'limited', 'pairing', 'pin'].includes(current.snapshot.state);
         stopScan();
+        setScanned(false);
         client.disconnect();
       } else if (state === 'active' && resumeWifi.current) {
         resumeWifi.current = false;
@@ -158,11 +165,13 @@ export function useRemote() {
 
   const wifiReady = ['connected', 'limited'].includes(snapshot.state);
   useEffect(() => {
-    if (restored && panel === 'connection' && mode === 'wifi' && !scanned && !scanning &&
-      !wifiReady && snapshot.state !== 'connecting' && snapshot.state !== 'pairing' && snapshot.state !== 'pin') {
+    if (appActive.current && shouldBeginDiscovery({
+      foreground, restored, panel, mode, scanned, scanning,
+      wifiReady, connectionState: snapshot.state,
+    })) {
       void scan(true);
     }
-  }, [restored, panel, mode, scanned, scanning, wifiReady, snapshot.state]);
+  }, [foreground, restored, panel, mode, scanned, scanning, wifiReady, snapshot.state]);
 
   const openConnection = () => {
     setMode('wifi');

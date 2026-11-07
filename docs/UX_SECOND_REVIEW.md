@@ -25,3 +25,6 @@ Tests à effectuer sur POCO F3 : visibilité sur largeur 320 dp et texte 200 %, 
 
 ## Rétroaction de seconde revue : PIN
 La confirmation à l'écran n'est pas universelle. Si la TV demande un code, la connexion affiche un champ numérique limité à 8 caractères, puis un bouton « Valider le code de la télévision ». Si un PIN apparaît alors que l'application attend une confirmation, un bouton de secours réinitialise la session en mode PIN. Le code ne s'affiche pas dans les messages d'état et n'est pas sauvegardé. Les réponses erronées peuvent être corrigées, sans faux statut « connecté ».
+
+## Réduction des surprises après changement d'application
+Suspendre la découverte lorsque l'application passe en arrière-plan évite un indicateur incohérent, les recherches cachées et la batterie consommée. Au retour, le panneau Wi-Fi peut lancer une nouvelle recherche ; le mode IR demeure utilisable hors réseau.

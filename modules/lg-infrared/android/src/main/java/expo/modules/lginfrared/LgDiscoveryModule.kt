@@ -9,6 +9,8 @@ import android.os.SystemClock
 import android.provider.Settings
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
@@ -39,9 +41,11 @@ class LgDiscoveryModule : Module() {
       val context = appContext.reactContext ?: throw IllegalStateException("Android indisponible")
       context.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
-    AsyncFunction("discover") { preferredId: String ->
+    // Do not block Expo's shared serial AsyncFunction queue: IR transmission
+    // must stay responsive while a 6-second SSDP discovery is running.
+    AsyncFunction("discover") Coroutine { preferredId: String ->
       val context = appContext.reactContext ?: throw IllegalStateException("Android indisponible")
-      scan(context, preferredId)
+      withContext(Dispatchers.IO) { scan(context, preferredId) }
     }
     OnDestroy { cancel() }
   }

@@ -49,3 +49,6 @@ Limite : le protocole SSAP PIN est implémenté d'après la documentation Connec
 
 ## Correctif de robustesse issu de la seconde passe
 L'effet React de recherche pouvait se déclencher de nouveau après une annulation en arrière-plan. Le signal AppState garde maintenant une référence impérative appActive et un état foreground, le démarrage réseau a un double garde, et la politique de déclenchement est une fonction pure avec test de non-régression. Après retour au premier plan, l'utilisateur voit une nouvelle recherche seulement si l'écran Wi-Fi est ouvert. Aucun multicast socket ne doit être ouvert si l'application reste en arrière-plan.
+
+## Correction performance 1.2.3 — thread dédié à la découverte
+Les fonctions Android AsyncFunction Expo utilisent une file native distincte du JS, mais les opérations bloquantes partagent cette file. Une boucle SSDP de 6 secondes pouvait ralentir un autre module asynchrone, notamment l'IR au moment d'accepter un jumelage. La découverte utilise désormais AsyncFunction Coroutine et withContext(Dispatchers.IO), l'IR restant indépendant. Référence : https://docs.expo.dev/modules/module-api/ . Une compilation Kotlin EAS et un essai réel sur POCO F3 restent requis.

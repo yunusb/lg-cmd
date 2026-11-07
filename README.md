@@ -30,7 +30,7 @@ Node 22.16+, projet Expo déjà associé :
     npx eas-cli build --platform android --profile preview
 
 Identifiant EAS : d4c12bb7-ce55-478f-a5b7-b519275a775f.
-Package Android : com.yunusb.lgcmd ; version 1.2.2 / versionCode 6.
+Package Android : com.yunusb.lgcmd ; version 1.2.3 / versionCode 7.
 L'APK EAS doit utiliser la même signature Android pour mettre à jour l'application installée.
 
 ## Conception et contrôle qualité
@@ -48,3 +48,5 @@ L'APK EAS doit utiliser la même signature Android pour mettre à jour l'applica
 IMPORTANT : passer une compilation Expo ou des tests unitaires ne prouve pas le jumelage sur une télévision réelle. La compatibilité Wi-Fi et les critères TalkBack nécessitent un test sur POCO F3 et sur la LG concernée ; garder le mode infrarouge.
 
 La recherche se suspend en arrière-plan et reprend en avant-plan, seulement si l'utilisateur se trouve dans le parcours Wi-Fi.
+
+La découverte Android passe par une Coroutine Expo avec Dispatchers.IO pour ne pas monopoliser la file de fonctions natives qui sert aussi à l'infrarouge. La réactivité IR pendant la recherche doit encore être vérifiée sur POCO F3.

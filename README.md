@@ -1,61 +1,52 @@
-# LG CMD — télécommande Android LG 2015
+# LG CMD 1.2 — Télécommande LG pour Android
 
-Projet **Expo + React Native + TypeScript**, prêt à être compilé en **APK Android** avec Expo EAS. Projet personnel **non officiel**, sans affiliation à LG.
+Télécommande personnelle non officielle pour LG LCD/LED. Le POCO F3 dispose d'un émetteur IR et les codes infrarouges fonctionnels ont été préservés. Projet Expo/React Native et Kotlin Android.
+
+## Associer une TV en Wi-Fi, sans adresse IP
+
+1. Allumer la TV et connecter le téléphone à la même box Wi-Fi. La TV peut être raccordée à la box par Wi-Fi ou Ethernet.
+2. Choisir Wi-Fi dans l'application : la découverte SSDP se lance automatiquement.
+3. Sélectionner la TV trouvée. Selon le modèle, accepter la demande sur son écran **ou saisir dans l'application un code PIN affiché par la TV**. Le code n'est jamais enregistré.
+4. Lors des prochaines utilisations, l'application recherche en priorité l'identifiant SSDP stable de la TV déjà approuvée. Un changement d'IP DHCP n'oblige plus à ressaisir une adresse.
+5. Si le routeur bloque la découverte, sélectionner « Réessayer ma TV enregistrée » pour tenter l'ancienne adresse avec une action explicite. La saisie d'adresse est cachée sous Options avancées.
+
+La recherche SSDP est locale, bornée et annulable. Aucun compte LG, géolocalisation, scan de sous-réseau ou service permanent.
 
 ## Compatibilité
 
-- **Wi-Fi** : LG Smart TV prenant en charge **LG webOS / SSAP**. Téléphone et TV sur le même réseau local. Les LG webOS 1.x/2.x utilisent généralement le port 3000. Accepter la demande de jumelage à l'écran.
-- **Infrarouge** : télévision LG LCD/LED et téléphone Android ayant un **émetteur IR physique** (le **POCO F3** en possède un). Codes LG/NEC à 38 kHz, susceptibles de varier selon le modèle.
-- **Expo Go** : le module infrarouge n'est pas inclus. Il faut un **APK EAS** (ou Development Build) pour utiliser l'IR.
-- **Power Wi-Fi** : la commande éteint la télévision, mais ne peut pas la rallumer par SSAP. En infrarouge, elle peut allumer et éteindre.
+- Infrarouge : téléphones avec émetteur matériel, notamment POCO F3. Sans réseau, sans compte.
+- Wi-Fi : anciennes LG webOS dont le protocole SSAP fonctionne sur ws://IP:3000, avec jumelage accepté sur la TV.
+- Certains modèles LG 2015 sont NetCast : découverte et identification possibles, mais contrôle réseau NetCast/UDAP non implémenté. Utiliser IR.
+- Les TV non Smart, webOS exigeant WSS/3001 uniquement et Wake-on-LAN ne sont pas contrôlables en Wi-Fi par cette version.
+- Wi-Fi Direct n'est pas nécessaire : même réseau domestique local. Ne jamais exposer le port TV sur Internet.
+- Expo Go ne contient pas les modules Kotlin IR et SSDP : installer un APK EAS.
 
-## APK Android
+## Commandes
 
-Le projet utilise l'ID Expo EAS :
+Node 22.16+, projet Expo déjà associé :
 
-d4c12bb7-ce55-478f-a5b7-b519275a775f
+    npm ci
+    npm run verify
+    npx eas-cli build --platform android --profile preview
 
-Avec Node.js 22.13 ou plus récent, dans le dossier du projet :
+Identifiant EAS : d4c12bb7-ce55-478f-a5b7-b519275a775f.
+Package Android : com.yunusb.lgcmd ; version 1.2.3 / versionCode 7.
+L'APK EAS doit utiliser la même signature Android pour mettre à jour l'application installée.
 
-~~~bash
-npm install
-npm install --global eas-cli
-eas login
-npx expo-doctor
-eas build --platform android --profile preview
-~~~
+## Conception et contrôle qualité
 
-Puis ouvrir le lien APK fourni par EAS sur le téléphone Android pour l'installer. Si nécessaire, autoriser l'installation de cette source dans les paramètres Android.
+- src/core/network.ts : validation d'IP, normalisation des identités SSDP, filtrage strict.
+- src/core/tvMemory.ts : retrouver la TV préférée via UUID, non par IP.
+- src/core/webos.ts : SSAP et clés SecureStore indexées par UUID quand connu.
+- src/useRemote.ts : recherche à l'entrée du Wi-Fi, reconnexion et secours explicite.
+- modules/lg-infrared : émission IR inchangée ; recherche SSDP native à durée bornée.
+- docs/NETWORK_REVIEW.md : audit protocole et revue de sécurité.
+- docs/UX_SECOND_REVIEW.md : revue UX et contre-revue sceptique.
+- tests : tests unitaires. GitHub Actions contrôle les types, la compatibilité Expo et le bundle JS Android.
+- .maestro : parcours UI préparés, non réputés exécutés sans émulateur/appareil réel.
 
-**Important : le dépôt contient les sources, pas un APK déjà compilé.** Le compte Expo connecté doit avoir accès au projet EAS ci-dessus. Une première compilation et une configuration des identifiants Android peuvent être nécessaires.
+IMPORTANT : passer une compilation Expo ou des tests unitaires ne prouve pas le jumelage sur une télévision réelle. La compatibilité Wi-Fi et les critères TalkBack nécessitent un test sur POCO F3 et sur la LG concernée ; garder le mode infrarouge.
 
-La commande `eas-build-pre-install` génère un fichier `package-lock.json` avant les vérifications Expo dans le cloud pour pallier son absence initiale du dépôt. Pour des versions reproductibles sur la durée, lancer `npm install` sur un ordinateur et commiter le fichier généré.
+La recherche se suspend en arrière-plan et reprend en avant-plan, seulement si l'utilisateur se trouve dans le parcours Wi-Fi.
 
-## Build automatique depuis GitHub
-
-Lier le dépôt dans **expo.dev → Project settings → GitHub**. Le fichier .eas/workflows/build-android.yml configure une compilation du profil preview sur les pushes dans main, une fois les autorisations et éventuels prérequis EAS établis. Il est aussi possible de lancer le build depuis la page du projet Expo.
-
-## Utilisation
-
-1. Allumer la TV LG. En mode **Wi-Fi**, entrer son IP locale dans l'application (ex. 192.168.1.20) et appuyer sur **Connecter**.
-2. Accepter la demande de jumelage sur la TV. Les identifiants sont mémorisés localement avec expo-secure-store.
-3. Utiliser les flèches, volume, chaînes, chiffres, lecture et la liste des sources HDMI.
-4. En mode **Infrarouge**, pointer le haut du téléphone vers la TV et appuyer sur les touches.
-
-Si la TV n'est pas Smart/webOS, utiliser l'IR avec un téléphone compatible.
-
-## Organisation
-
-- App.tsx : interface de la télécommande.
-- src/webos.ts : appairage et commandes LG webOS/SSAP.
-- src/remote-keys.ts : codes infrarouges LG/NEC.
-- modules/lg-infrared/ : module Kotlin ConsumerIrManager pour Android.
-- plugins/withCleartextForLocalWebOS.js : autorise les WebSockets locaux non chiffrés nécessaires à certaines anciennes TV.
-- eas.json : profils Android APK et AAB.
-- .eas/workflows/build-android.yml : workflow EAS.
-
-## État et limites
-
-Correctifs Expo Doctor / Gradle du 4 novembre 2026 : version TypeScript compatible SDK 57, schéma Android valide et `versionName` du module IR. **Une compilation réussie n'a pas encore été confirmée et l'application n'a pas été testée sur une télévision physique**. Une première compilation peut demander des corrections. Les TV LG NetCast ou LCD non Smart ne sont pas contrôlables en Wi-Fi avec ce protocole. Ne jamais exposer le port de commande LG sur Internet ; l'application ne se connecte qu'à une IP locale.
-
-Références : [Expo EAS](https://docs.expo.dev/build/introduction/), [Expo modules](https://docs.expo.dev/modules/get-started/), [ConsumerIrManager Android](https://developer.android.com/reference/android/hardware/ConsumerIrManager).
+La découverte Android passe par une Coroutine Expo avec Dispatchers.IO pour ne pas monopoliser la file de fonctions natives qui sert aussi à l'infrarouge. La réactivité IR pendant la recherche doit encore être vérifiée sur POCO F3.

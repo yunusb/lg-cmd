@@ -1,0 +1,14 @@
+appId: com.yunusb.lgcmd
+---
+- launchApp:
+    clearState: true
+- runFlow:
+    when:
+      visible: "Mode Wi-Fi"
+    commands:
+      - tapOn: "Mode Wi-Fi"
+- assertVisible: "Trouver votre télévision"
+- assertVisible: "Connexion Wi-Fi automatique"
+- assertNotVisible: "Adresse IP locale de la télévision"
+- back
+- assertVisible: "LG Remote"

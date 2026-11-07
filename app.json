@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Télécommande LG 2015",
+    "name": "LG Remote",
     "slug": "lg-cmd",
     "scheme": "lgcmd",
-    "version": "1.0.0",
+    "version": "1.2.3",
     "orientation": "portrait",
     "platforms": [
       "android"
@@ -12,14 +12,19 @@
     "newArchEnabled": true,
     "android": {
       "package": "com.yunusb.lgcmd",
-      "versionCode": 1,
+      "versionCode": 7,
+      "allowBackup": false,
       "permissions": [
         "android.permission.INTERNET",
-        "android.permission.TRANSMIT_IR"
+        "android.permission.TRANSMIT_IR",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CHANGE_WIFI_MULTICAST_STATE"
       ]
     },
     "plugins": [
-      "./plugins/withCleartextForLocalWebOS"
+      "./plugins/withCleartextForLocalWebOS",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

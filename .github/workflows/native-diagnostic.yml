@@ -1,0 +1,36 @@
+name: Diagnose release Android native
+on:
+  push:
+    branches: [gradle-diagnostics-20261107]
+permissions:
+  contents: read
+jobs:
+  compile-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      CI: '1'
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+      - name: Install matching Android SDK and CMake
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Generate Android project
+        run: npx expo prebuild --clean --platform android --no-install
+      - name: Reproduce Expo release build with complete diagnostic
+        working-directory: android
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace --console=plain

@@ -22,3 +22,6 @@ Une personne qui ne sait pas ce qu'est une adresse IP doit pouvoir connecter une
 
 ## Critères non encore démontrés par la CI
 Tests à effectuer sur POCO F3 : visibilité sur largeur 320 dp et texte 200 %, TalkBack, fermeture du panneau par Retour, efficacité de la recherche sous Wi-Fi domestique, association avec TV 2015 réelle, durée ressentie et reconnection DHCP. Les tests unitaires et le build ne remplacent pas ces validations.
+
+## Rétroaction de seconde revue : PIN
+La confirmation à l'écran n'est pas universelle. Si la TV demande un code, la connexion affiche un champ numérique limité à 8 caractères, puis un bouton « Valider le code de la télévision ». Si un PIN apparaît alors que l'application attend une confirmation, un bouton de secours réinitialise la session en mode PIN. Le code ne s'affiche pas dans les messages d'état et n'est pas sauvegardé. Les réponses erronées peuvent être corrigées, sans faux statut « connecté ».

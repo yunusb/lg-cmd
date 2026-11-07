@@ -37,7 +37,7 @@ function RemoteScreen() {
     else void r.send('POWER');
   };
   const connectionLabel = r.mode === 'ir' ? r.irReady ? 'Infrarouge prêt' : 'Émetteur non détecté' :
-    r.wifiReady ? 'TV LG connectée en Wi-Fi' : r.snapshot.state === 'pairing' ? 'Autoriser sur la TV' :
+    r.wifiReady ? 'TV LG connectée en Wi-Fi' : r.snapshot.state === 'pin' ? 'Code de la TV à saisir' : r.snapshot.state === 'pairing' ? 'Autoriser sur la TV' :
     r.snapshot.state === 'connecting' ? 'Connexion à la TV…' : r.scanning ? 'Recherche de la télévision…' : 'Trouver une TV LG';
   const notice = r.error || (r.mode === 'wifi' && r.snapshot.state === 'error' ? r.snapshot.message : '');
   const close = () => { r.closeConnection(); };
@@ -128,7 +128,7 @@ function RemoteScreen() {
       {r.scanned && !r.scanning && !r.devices.length && !r.scanCancelled && !r.error &&
         <View style={styles.help}>
           <Text style={s.text}>Aucune TV LG détectée</Text>
-          <Text style={s.muted}>Vérifiez que la TV est allumée et reliée à la même box. Évitez le réseau Wi-Fi « invité » et désactivez l’isolement des appareils dans la box si nécessaire.</Text>
+          <Text style={s.muted}>Vérifiez que la TV est allumée, sur la même box et hors réseau « invité ». Sur certaines LG, activez Paramètres → Réseau → LG Connect Apps.</Text>
         </View>
       }
       {r.scanCancelled && <Text style={s.muted}>Recherche interrompue. Vous pouvez la relancer.</Text>}
@@ -139,12 +139,22 @@ function RemoteScreen() {
           <Key label="Réessayer ma TV enregistrée" icon="tv" onPress={r.retryPreferred} />
         </View>}
       {!r.scanning && <Key label="Relancer la recherche" icon="search" caption onPress={() => void r.scan(false)} />}
-      {['pairing', 'connecting', 'connected', 'limited', 'error'].includes(r.snapshot.state) && (
+      {['pairing', 'pin', 'connecting', 'connected', 'limited', 'error'].includes(r.snapshot.state) && (
         <View style={styles.help}>
           <Text style={s.text} accessibilityLiveRegion="polite">{r.snapshot.message}</Text>
-          {r.snapshot.state === 'pairing' && <Text style={s.muted}>
-            Acceptez la demande sur l’écran de la TV. Si besoin, utilisez l’infrarouge pour valider, puis revenez ici.
-          </Text>}
+          {r.snapshot.state === 'pairing' && <View style={{ gap: 10 }}>
+            <Text style={s.muted}>Acceptez la demande sur l’écran de la TV. Si un code s’affiche plutôt qu’une confirmation, choisissez l’option ci-dessous.</Text>
+            <Key label="La télévision affiche un code PIN" onPress={r.startPinPairing} />
+          </View>}
+          {r.snapshot.state === 'pin' && <View style={{ gap: 10 }}>
+            <Text style={s.muted}>Saisissez le code de 4 à 8 chiffres visible sur votre télévision. Il n’est jamais enregistré.</Text>
+            <TextInput accessibilityLabel="Code PIN affiché sur la TV" placeholder="Code affiché sur la TV"
+              placeholderTextColor={t.muted} keyboardType="number-pad" autoCorrect={false}
+              value={r.pairingPin} onChangeText={r.setPairingPin} maxLength={8}
+              style={styles.input} returnKeyType="done" onSubmitEditing={r.submitPin} />
+            <Key label="Valider le code de la télévision" onPress={r.submitPin} />
+          </View>}
+          {r.snapshot.state === 'error' && <Key label="Essayer le jumelage avec code PIN" onPress={r.startPinPairing} />}
           {r.snapshot.state === 'connecting' && <Key label="Annuler la connexion" onPress={r.disconnect} />}
         </View>
       )}

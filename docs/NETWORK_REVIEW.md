@@ -41,3 +41,8 @@ Références :
 
 ## Validation restante sur appareil
 Rechercher dans une maison avec une ou plusieurs TV, accepter/refuser le jumelage, redémarrer l'application, provoquer un changement de DHCP, couper le multicast et vérifier le secours manuel. Le POCO F3 et le modèle LG réel sont indispensables pour déclarer le Wi-Fi fonctionnel.
+
+## Correctif de seconde revue : méthode de jumelage par code PIN
+Le guide officiel LG TV Plus décrit l'association par affichage d'un PIN sur la TV, même si d'autres clients utilisent la confirmation PROMPT. Le client SSAP accepte donc désormais la demande de code PIN reçue dans une réponse de registration ou une initiation manuelle « La télévision affiche un code PIN ». L'application envoie le code via ssap://pairing/setPin et ne l'enregistre pas. Validation strictement numérique 4 à 8 chiffres, code refusé pouvant être ressaisi. L'écran conserve la possibilité d'accepter une confirmation classique et de revenir à l'IR.
+Sources : https://www.lgappstv.com/manual/w16_mr/atsc/Contents/control/remoteapp_k_u_b/enga/w3a__control__remoteapp_k_u_b__enga.html ; https://github.com/ConnectSDK/Connect-SDK-Android-Core/blob/master/src/com/connectsdk/service/webos/WebOSTVServiceSocketClient.java
+Limite : le protocole SSAP PIN est implémenté d'après la documentation ConnectSDK, mais il faut encore le tester sur le téléviseur précis de l'utilisateur.

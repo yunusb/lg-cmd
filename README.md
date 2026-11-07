@@ -6,7 +6,7 @@ Télécommande personnelle non officielle pour LG LCD/LED. Le POCO F3 dispose d'
 
 1. Allumer la TV et connecter le téléphone à la même box Wi-Fi. La TV peut être raccordée à la box par Wi-Fi ou Ethernet.
 2. Choisir Wi-Fi dans l'application : la découverte SSDP se lance automatiquement.
-3. Sélectionner la TV trouvée et accepter le jumelage affiché sur l'écran TV (avec la télécommande IR si nécessaire).
+3. Sélectionner la TV trouvée. Selon le modèle, accepter la demande sur son écran **ou saisir dans l'application un code PIN affiché par la TV**. Le code n'est jamais enregistré.
 4. Lors des prochaines utilisations, l'application recherche en priorité l'identifiant SSDP stable de la TV déjà approuvée. Un changement d'IP DHCP n'oblige plus à ressaisir une adresse.
 5. Si le routeur bloque la découverte, sélectionner « Réessayer ma TV enregistrée » pour tenter l'ancienne adresse avec une action explicite. La saisie d'adresse est cachée sous Options avancées.
 
@@ -30,7 +30,7 @@ Node 22.16+, projet Expo déjà associé :
     npx eas-cli build --platform android --profile preview
 
 Identifiant EAS : d4c12bb7-ce55-478f-a5b7-b519275a775f.
-Package Android : com.yunusb.lgcmd ; version 1.2.0 / versionCode 4.
+Package Android : com.yunusb.lgcmd ; version 1.2.1 / versionCode 5.
 L'APK EAS doit utiliser la même signature Android pour mettre à jour l'application installée.
 
 ## Conception et contrôle qualité

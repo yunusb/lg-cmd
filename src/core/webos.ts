@@ -4,7 +4,7 @@ import { scheduler, type Scheduler } from './hold.ts';
 
 type Json = Record<string, unknown>;
 const record = (v: unknown): Json => v !== null && typeof v === 'object' && !Array.isArray(v) ? v as Json : {};
-export type State = 'idle' | 'connecting' | 'pairing' | 'connected' | 'limited' | 'error';
+export type State = 'idle' | 'connecting' | 'pairing' | 'pin' | 'connected' | 'limited' | 'error';
 export type Snapshot = { state: State; message: string; navigation: boolean };
 export type TvInput = { id: string; label: string; connected: boolean };
 export type Socket = {
@@ -45,6 +45,9 @@ export class WebOsClient {
   private pointerTimer: unknown;
   private registered = false;
   private pointerReady = false;
+  private awaitingPin = false;
+  private pinPending = false;
+  private pinRequestId: string | null = null;
   private pending = new Map<string, { resolve: (p: Json) => void; reject: (e: Error) => void; timer: unknown }>();
   private createSocket: (url: string) => Socket;
   private storage: Storage;
@@ -70,6 +73,8 @@ export class WebOsClient {
   private reset() {
     this.generation++; this.clock.cancel(this.timer); this.clock.cancel(this.pointerTimer);
     this.registered = this.pointerReady = false;
+    this.awaitingPin = this.pinPending = false;
+    this.pinRequestId = null;
     this.pairedId = null;
     this.clearSocket(this.socket); this.clearSocket(this.navigation);
     this.socket = this.navigation = undefined;
@@ -79,7 +84,7 @@ export class WebOsClient {
   disconnect() { this.reset(); this.emit('idle', 'Wi-Fi déconnecté.'); }
   private fail(message: string) { this.reset(); this.emit('error', message); }
 
-  async connect(value: string, deviceId?: string) {
+  async connect(value: string, deviceId?: string, pairingMode: 'PROMPT' | 'PIN' = 'PROMPT') {
     this.reset();
     this.pairedId = stableTvId(deviceId);
     const host = localIPv4(value);
@@ -99,14 +104,16 @@ export class WebOsClient {
       ws.onopen = () => {
         if (!valid()) return;
         this.clock.cancel(this.timer);
-        this.emit('pairing', 'Acceptez la demande sur la TV. Vous pouvez utiliser le mode IR pour valider.');
+        this.awaitingPin = pairingMode === 'PIN';
+        this.emit(this.awaitingPin ? 'pin' : 'pairing',
+          this.awaitingPin ? 'Entrez le code affiché sur la TV.' : 'Acceptez la demande sur la TV. Vous pouvez utiliser le mode IR pour valider.');
         this.timer = this.clock.after(() => {
           if (valid()) this.fail('Jumelage expiré. Acceptez sur la TV, ou oubliez l’ancien jumelage.');
         }, 45000);
         try {
           ws.send(JSON.stringify({ id: 'register', type: 'register', payload: {
-            pairingType: 'PROMPT', forcePairing: false,
-            manifest: { manifestVersion: 1, appVersion: '1.1', permissions },
+            pairingType: pairingMode, forcePairing: false,
+            manifest: { manifestVersion: 1, appVersion: '1.2', permissions },
             ...(key ? { 'client-key': key } : {}),
           } }));
         } catch { this.fail('Impossible d’envoyer la demande de jumelage.'); }
@@ -126,6 +133,8 @@ export class WebOsClient {
     const payload = record(msg.payload);
     if (msg.type === 'registered' && !this.registered) {
       this.clock.cancel(this.timer); this.registered = true;
+      this.awaitingPin = this.pinPending = false;
+      this.pinRequestId = null;
       const host = this.host;
       const key = payload['client-key'];
       if (typeof key === 'string' && key.length <= 2048) {
@@ -143,12 +152,54 @@ export class WebOsClient {
     if (msg.id === 'register' && (msg.type === 'error' || payload.returnValue === false)) {
       this.fail('Jumelage refusé. Acceptez sur la TV ou choisissez « Oublier le jumelage ».'); return;
     }
+    // Some older webOS TVs request a PIN rather than an on-screen acceptance.
+    if (msg.id === 'register' && msg.type === 'response' && !this.registered) {
+      const announced = typeof payload.pairingType === 'string' ? payload.pairingType.toUpperCase() : '';
+      if (announced === 'PIN' || announced === 'COMBINED') {
+        this.awaitingPin = true;
+        this.emit('pin', 'La TV demande un code. Saisissez les chiffres affichés sur son écran.');
+      }
+      return;
+    }
     if (typeof msg.id !== 'string') return;
+    if (msg.id === this.pinRequestId && (msg.type === 'response' || msg.type === 'error')) {
+      this.pinPending = false;
+      this.pinRequestId = null;
+      if (msg.type === 'error' || payload.returnValue === false) {
+        this.awaitingPin = true;
+        this.emit('pin', 'Code refusé. Vérifiez les chiffres indiqués sur la TV.');
+      }
+      return;
+    }
     const pending = this.pending.get(msg.id);
     if (!pending || (msg.type !== 'response' && msg.type !== 'error')) return;
     this.clock.cancel(pending.timer); this.pending.delete(msg.id);
     if (msg.type === 'error' || payload.returnValue === false) pending.reject(new Error('Commande refusée par la TV. Vérifiez le jumelage.'));
     else pending.resolve(payload);
+  }
+
+  /** LG webOS PIN variant: send only an explicitly entered short numeric code. */
+  sendPairingPin(value: string): void {
+    const pin = value.trim();
+    if (!/^\d{4,8}$/.test(pin)) throw new Error('Le code doit comporter 4 à 8 chiffres.');
+    if (!this.awaitingPin || this.registered || this.socket?.readyState !== 1) {
+      throw new Error('La TV ne demande pas de code. Lancez le jumelage par code.');
+    }
+    if (this.pinPending) throw new Error('Code déjà envoyé. Attendez la réponse de la TV.');
+    const id = 'pairing-pin-' + (++this.sequence);
+    this.pinPending = true;
+    this.pinRequestId = id;
+    try {
+      this.socket.send(JSON.stringify({
+        id, type: 'request', uri: 'ssap://pairing/setPin', payload: { pin },
+      }));
+      this.emit('pairing', 'Code envoyé. Autorisation en cours…');
+    } catch {
+      this.pinPending = false;
+      this.pinRequestId = null;
+      this.emit('pin', 'Envoi du code impossible, réessayez.');
+      throw new Error('Envoi du code impossible.');
+    }
   }
 
   private openPointer(url: unknown, generation: number) {

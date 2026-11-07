@@ -19,6 +19,7 @@ export function useRemote() {
   const [irReady] = useState(canTransmitIR);
   const [mode, setMode] = useState<Mode>(irReady ? 'ir' : 'wifi');
   const [ip, setIp] = useState('');
+  const [pairingPin, setPairingPin] = useState('');
   const [haptics, setHaptics] = useState(true);
   const [snapshot, setSnapshot] = useState(INITIAL);
   const [error, setError] = useState('');
@@ -76,15 +77,16 @@ export function useRemote() {
     }
   };
 
-  const connectDevice = (device: TvDevice) => {
+  const connectDevice = (device: TvDevice, pairingMode: 'PROMPT' | 'PIN' = 'PROMPT') => {
     if (device.protocol !== 'webos') return;
     stopScan();
     setError('');
     setIp(device.host);
     setMode('wifi');
     pendingChoice.current = device;
+    setPairingPin('');
     void SecureStore.setItemAsync('lg_mode', 'wifi').catch(() => {});
-    void client.connect(device.host, stableTvId(device.id) ?? undefined).catch(report);
+    void client.connect(device.host, stableTvId(device.id) ?? undefined, pairingMode).catch(report);
   };
 
   const scan = async (autoConnectRemembered = false) => {
@@ -138,7 +140,7 @@ export function useRemote() {
     const subscription = AppState.addEventListener('change', state => {
       const current = stateRef.current;
       if (state === 'background') {
-        resumeWifi.current = current.mode === 'wifi' && ['connected', 'limited', 'pairing'].includes(current.snapshot.state);
+        resumeWifi.current = current.mode === 'wifi' && ['connected', 'limited', 'pairing', 'pin'].includes(current.snapshot.state);
         stopScan();
         client.disconnect();
       } else if (state === 'active' && resumeWifi.current) {
@@ -157,7 +159,7 @@ export function useRemote() {
   const wifiReady = ['connected', 'limited'].includes(snapshot.state);
   useEffect(() => {
     if (restored && panel === 'connection' && mode === 'wifi' && !scanned && !scanning &&
-      !wifiReady && snapshot.state !== 'connecting' && snapshot.state !== 'pairing') {
+      !wifiReady && snapshot.state !== 'connecting' && snapshot.state !== 'pairing' && snapshot.state !== 'pin') {
       void scan(true);
     }
   }, [restored, panel, mode, scanned, scanning, wifiReady, snapshot.state]);
@@ -205,6 +207,19 @@ export function useRemote() {
     // to a stale IP silently; let the user choose this one-tap recovery.
     connectDevice({ id: saved.id, host: saved.host, protocol: 'webos', label: 'TV LG enregistrée' });
   };
+  const startPinPairing = () => {
+    const host = localIPv4(ip);
+    if (!host) { setError('Sélectionnez une TV avant de demander un code.'); return; }
+    const remembered = preferred.current?.host === host ? preferred.current : null;
+    const choice = pendingChoice.current ?? {
+      host, id: remembered?.id ?? host, protocol: 'webos' as const, label: 'Téléviseur LG',
+    };
+    connectDevice(choice, 'PIN');
+  };
+  const submitPin = () => {
+    try { client.sendPairingPin(pairingPin); setPairingPin(''); setError(''); }
+    catch (e) { report(e); }
+  };
   const closeConnection = () => { stopScan(); setPanel(null); };
   const available = (key: RemoteKey) => mode === 'ir' ? irReady : wifiReady && (!needsPointer(key) || snapshot.navigation);
   const showInputs = async () => {
@@ -237,6 +252,7 @@ export function useRemote() {
     snapshot, error, clearError: () => setError(''), panel, setPanel,
     devices, scanning, scanned, scanCancelled, scan, stopScan, connectDevice, manualConnect,
     hasSavedTv: restored && preferred.current !== null, retryPreferred,
+    pairingPin, setPairingPin, startPinPairing, submitPin,
     wifiReady, available, send, inputs, loadingInputs, disconnect: () => client.disconnect(),
     forget, settings: () => { try { openWifiSettings(); } catch (e) { report(e); } },
     switchInput: async (id: string) => {

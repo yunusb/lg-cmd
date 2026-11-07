@@ -35,3 +35,6 @@ L'accès réseau du conteneur de développement n'a pas permis d'installer les d
 
 ## Tests additionnels de réactivité (5 novembre 2026)
 Six tests de régression couvrent l’envoi immédiat sans répétition, la sécurité des boutons d’alimentation, la suppression des doublons au relâchement, les touches désactivées, l’activation accessible et l’annulation. Le retour tactile se déclenche dès le contact, sans attendre la promesse asynchrone du module infrarouge. À valider encore avec la vibration réelle du POCO F3 et le récepteur LG : les tests unitaires ne prouvent pas la perception tactile ni la portée IR.
+
+## Revue Wi-Fi 1.2.1 — validations supplémentaires
+Les nouveaux tests vérifient l'identité SSDP stable, le renouvellement DHCP, les téléviseurs non correspondants, la confidentialité du jeton et du code, le type de jumelage PIN/PROMPT, les délais et les codes IR inchangés. L'intégration n'est pas considérée fonctionnelle sur la TV de l'utilisateur sans test matériel : la CI seule n'observe ni le multicast Android réel ni le code affiché sur la TV.

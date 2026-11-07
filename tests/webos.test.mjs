@@ -248,3 +248,64 @@ test('manual IP connection keeps legacy key compatibility', async t => {
   h.sockets[0].open();
   assert.equal(h.sockets[0].last().payload['client-key'], 'manual-key');
 });
+
+
+test('a webOS TV may request PIN pairing after a PROMPT registration', async t => {
+  const h = setup(t);
+  await h.client.connect('192.168.1.2');
+  const ws = h.sockets[0]; ws.open();
+  ws.message({ id: 'register', type: 'response', payload: { pairingType: 'PIN' } });
+  assert.equal(h.lastState().state, 'pin');
+  assert.match(h.lastState().message, /code/i);
+});
+
+test('explicit PIN pairing sends setPin on the existing secure pairing session', async t => {
+  const h = setup(t);
+  await h.client.connect('192.168.1.2', 'uuid:tv1', 'PIN');
+  const ws = h.sockets[0]; ws.open();
+  assert.equal(ws.last().payload.pairingType, 'PIN');
+  assert.equal(h.lastState().state, 'pin');
+  h.client.sendPairingPin('001234');
+  assert.equal(ws.last().uri, 'ssap://pairing/setPin');
+  assert.equal(ws.last().payload.pin, '001234');
+  assert.equal(h.lastState().state, 'pairing');
+  ws.message({ id: ws.last().id, type: 'response', payload: { returnValue: true } });
+  ws.message({ id: 'register', type: 'registered', payload: { 'client-key': 'paired' } });
+  await flush();
+  assert.equal(h.lastState().state, 'limited');
+  assert.equal(h.values.get('lg_webos_key_uuid_tv1'), 'paired');
+  assert.equal(JSON.stringify(h.states).includes('001234'), false);
+});
+
+test('wrong PIN is retryable without storing the code or losing the connection', async t => {
+  const h = setup(t);
+  await h.client.connect('192.168.1.2', undefined, 'PIN');
+  const ws = h.sockets[0]; ws.open();
+  h.client.sendPairingPin('1234');
+  const firstId = ws.last().id;
+  assert.throws(() => h.client.sendPairingPin('2345'), /déjà envoyé/);
+  ws.message({ id: firstId, type: 'error', error: '400' });
+  assert.equal(h.lastState().state, 'pin');
+  h.client.sendPairingPin('567890');
+  assert.equal(ws.last().payload.pin, '567890');
+  assert.equal(h.values.size, 0);
+});
+
+test('PIN input validation prevents non-numeric or unrequested submissions', async t => {
+  const h = setup(t);
+  await h.client.connect('192.168.1.2');
+  const ws = h.sockets[0]; ws.open();
+  for (const value of ['', '123', '123456789', '1 234', 'abcdef']) {
+    assert.throws(() => h.client.sendPairingPin(value), /4 à 8 chiffres/);
+  }
+  assert.throws(() => h.client.sendPairingPin('123456'), /ne demande pas de code/);
+  assert.equal(ws.frames.length, 1);
+});
+
+test('registration completion prevents replaying the PIN', async t => {
+  const h = setup(t);
+  await h.client.connect('192.168.1.2', undefined, 'PIN');
+  const ws = h.sockets[0]; ws.open();
+  ws.message({ id: 'register', type: 'registered', payload: { 'client-key': 'one' } });
+  assert.throws(() => h.client.sendPairingPin('123456'), /ne demande pas de code/);
+});

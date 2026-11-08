@@ -41,3 +41,9 @@ Les nouveaux tests vérifient l'identité SSDP stable, le renouvellement DHCP, l
 
 ## Réactivité IR sous recherche Wi-Fi (seconde revue)
 Test matériel nécessaire : avec découverte SSDP en cours, passer en mode infrarouge et envoyer OK/Volume ; l'événement doit être immédiat, sans attente de fin de scan. Le module de découverte Kotlin utilise désormais Dispatchers.IO et n'occupe plus la file partagée Expo AsyncFunction. Aucun test unitaire JavaScript ne peut mesurer à lui seul le temps de réponse du matériel IR.
+
+
+## 8 novembre 2026 — diagnostic d'une TV détectée mais déconnectée
+Le diagnostic SSAP indique maintenant le stade de fermeture du canal local de commande sans afficher l'IP, le token ou une réponse réseau non filtrée : `WS3000-OPEN-…`, `WS3000-PAIR-…`, `WS3000-ACTIVE-…` ou `SSAP-401/403/ERR`. Les erreurs WebSocket Android peuvent être suivies d'une fermeture ; le traitement attend brièvement la fermeture pour récupérer le code et évite les doublons.
+Une clé précédemment enregistrée peut être réessayée une seule fois, sans clé, si la TV ferme la session avant le jumelage ou signale une clé invalide. Aucun réessai automatique après un refus explicite de l'utilisateur. L'IP et les clés ne sont jamais journalisées dans l'interface.
+Tests déterministes ajoutés pour les phases, les refus, la sécurité des clés et l'absence de boucle. La détection SSDP ne prouve toujours pas le support SSAP sur port 3000 ; certains firmwares utilisent un port sécurisé 3001 avec certificats LG non reconnus par Android. Aucune désactivation de la vérification TLS n'est implémentée.

@@ -174,6 +174,7 @@ test('closed navigation sockets reject commands before sending', async t => {
 });
 test('control socket errors clear pending work', async t => {
   const h = setup(t); const ws = await ready(h); ws.onerror();
+  h.clock.advance(250);
   assert.equal(h.lastState().state, 'error'); assert.ok(h.sockets.every(s => s.closed));
 });
 test('control closure offers a reconnection instead of stale connected status', async t => {
@@ -308,4 +309,83 @@ test('registration completion prevents replaying the PIN', async t => {
   const ws = h.sockets[0]; ws.open();
   ws.message({ id: 'register', type: 'registered', payload: { 'client-key': 'one' } });
   assert.throws(() => h.client.sendPairingPin('123456'), /ne demande pas de code/);
+});
+
+test('TV discovery can succeed even when command port closes before opening', async t => {
+  const h = setup(t); await h.client.connect('192.168.1.2');
+  h.sockets[0].onclose({ code: 1006 });
+  assert.equal(h.lastState().state, 'error');
+  assert.equal(h.lastState().diagnostic, 'WS3000-OPEN-1006');
+  assert.match(h.lastState().message, /service de télécommande/);
+});
+test('premature close after register prompt explains pairing stage instead of generic disconnect', async t => {
+  const h = setup(t); await h.client.connect('192.168.1.2');
+  const socket = h.sockets[0]; socket.open(); socket.onclose({ code: 1001, reason: 'private-data-ignored' });
+  assert.equal(h.lastState().diagnostic, 'WS3000-PAIR-1001');
+  assert.match(h.lastState().message, /interrompu le jumelage/);
+  assert.ok(!JSON.stringify(h.states).includes('private-data-ignored'));
+});
+test('a saved legacy key is retried only once after pairing socket closes', async t => {
+  const h = setup(t); h.values.set('lg_key_192_168_1_2', 'old-private-key');
+  await h.client.connect('192.168.1.2');
+  h.sockets[0].open();
+  assert.equal(h.sockets[0].last().payload['client-key'], 'old-private-key');
+  h.sockets[0].onclose({ code: 1006 });
+  assert.equal(h.sockets.length, 2);
+  assert.equal(h.sockets[0].closed, true);
+  assert.equal(h.sockets[1].url, 'ws://192.168.1.2:3000/');
+  h.sockets[1].open();
+  assert.equal(h.sockets[1].last().payload['client-key'], undefined);
+  h.sockets[1].onclose({ code: 1006 });
+  assert.equal(h.sockets.length, 2); // No infinite retry loop.
+  assert.equal(h.lastState().state, 'error');
+  assert.equal(h.lastState().diagnostic, 'WS3000-PAIR-1006');
+});
+test('a stale-key retry stores its new key only after TV approval', async t => {
+  const h = setup(t); h.values.set('lg_key_192_168_1_2', 'old');
+  await h.client.connect('192.168.1.2'); h.sockets[0].open(); h.sockets[0].onclose({ code: 1006 });
+  h.sockets[1].open();
+  assert.equal(h.values.get('lg_key_192_168_1_2'), 'old');
+  h.sockets[1].message({ id: 'register', type: 'registered', payload: { 'client-key': 'new' } });
+  await flush();
+  assert.equal(h.values.get('lg_key_192_168_1_2'), 'new');
+});
+test('stale pairing key is retried on explicit invalid key but not user denial', async t => {
+  const h = setup(t); h.values.set('lg_key_192_168_1_2', 'old');
+  await h.client.connect('192.168.1.2'); h.sockets[0].open();
+  h.sockets[0].message({ id: 'register', type: 'error', error: '401 invalid client-key' });
+  assert.equal(h.sockets.length, 2);
+  h.sockets[1].open();
+  h.sockets[1].message({ id: 'register', type: 'error', error: '403 User denied access' });
+  assert.equal(h.lastState().state, 'error');
+  assert.equal(h.lastState().diagnostic, 'SSAP-403');
+  assert.equal(h.sockets.length, 2);
+});
+test('rejected pairing with no saved key does not silently retry or display secrets', async t => {
+  const h = setup(t); await h.client.connect('192.168.1.2'); h.sockets[0].open();
+  h.sockets[0].message({ id: 'register', type: 'error', error: '403 User denied access token=abc123' });
+  assert.equal(h.sockets.length, 1);
+  assert.equal(h.lastState().diagnostic, 'SSAP-403');
+  assert.ok(!JSON.stringify(h.states).includes('abc123'));
+});
+test('onerror followed by onclose produces exactly one diagnostic with close code', async t => {
+  const h = setup(t); await h.client.connect('192.168.1.2');
+  const ws = h.sockets[0]; ws.onerror(); h.clock.advance(100); ws.onclose({ code: 1006 });
+  const count = h.states.length; h.clock.advance(10000);
+  assert.equal(h.states.length, count); assert.equal(h.lastState().diagnostic, 'WS3000-OPEN-1006');
+});
+test('network error without close callback eventually returns a useful status', async t => {
+  const h = setup(t); await h.client.connect('192.168.1.2'); h.sockets[0].onerror();
+  h.clock.advance(249); assert.equal(h.lastState().state, 'connecting');
+  h.clock.advance(1); assert.equal(h.lastState().diagnostic, 'WS3000-OPEN-X');
+});
+test('explicit disconnect during 250ms diagnostic delay prevents stale error', async t => {
+  const h = setup(t); await h.client.connect('192.168.1.2');
+  h.sockets[0].onerror(); h.client.disconnect(); h.clock.advance(5000);
+  assert.equal(h.lastState().state, 'idle');
+});
+test('a connected socket closing reports session loss, not registration failure', async t => {
+  const h = setup(t); const ws = await ready(h); ws.onclose({ code: 1006 });
+  assert.equal(h.lastState().diagnostic, 'WS3000-ACTIVE-1006');
+  assert.match(h.lastState().message, /déconnectée/);
 });

@@ -37,6 +37,7 @@ export function useRemote() {
   const appActive = useRef(AppState.currentState !== 'background');
   const preferred = useRef<PreferredTv | null>(null);
   const pendingChoice = useRef<TvDevice | null>(null);
+  const [lastAttempted, setLastAttempted] = useState<TvDevice | null>(null);
   const scanId = useRef(0);
   const scanActive = useRef(false);
   const commandBusy = useRef(false);
@@ -87,6 +88,7 @@ export function useRemote() {
     setIp(device.host);
     setMode('wifi');
     pendingChoice.current = device;
+    setLastAttempted(device);
     setPairingPin('');
     void SecureStore.setItemAsync('lg_mode', 'wifi').catch(() => {});
     void client.connect(device.host, stableTvId(device.id) ?? undefined, pairingMode).catch(report);
@@ -261,6 +263,8 @@ export function useRemote() {
     snapshot, error, clearError: () => setError(''), panel, setPanel,
     devices, scanning, scanned, scanCancelled, scan, stopScan, connectDevice, manualConnect,
     hasSavedTv: restored && preferred.current !== null, retryPreferred,
+    canRetryConnection: lastAttempted !== null,
+    retryConnection: () => { if (lastAttempted) connectDevice(lastAttempted); },
     pairingPin, setPairingPin, startPinPairing, submitPin,
     wifiReady, available, send, inputs, loadingInputs, disconnect: () => client.disconnect(),
     forget, settings: () => { try { openWifiSettings(); } catch (e) { report(e); } },

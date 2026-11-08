@@ -103,7 +103,7 @@ function RemoteScreen() {
 
     <Sheet title="Trouver votre télévision" visible={r.panel === 'connection'} onClose={close}>
       <Text style={s.text} accessibilityRole="header">Connexion Wi-Fi automatique</Text>
-      <Text style={s.muted}>Allumez la télévision. Elle doit être connectée à la même box que ce téléphone, en Wi-Fi ou par câble réseau.</Text>
+      <Text style={s.muted}>La recherche retrouve les TV sur ton réseau. Pour les contrôler, elles doivent aussi autoriser la télécommande dans les réglages LG Connect Apps.</Text>
       {r.scanning && <View style={s.row} accessibilityLiveRegion="polite">
         <ActivityIndicator color={t.accent} />
         <View style={styles.flex}><Text style={s.text}>Recherche des TV LG…</Text>
@@ -154,7 +154,12 @@ function RemoteScreen() {
               style={styles.input} returnKeyType="done" onSubmitEditing={r.submitPin} />
             <Key label="Valider le code de la télévision" onPress={r.submitPin} />
           </View>}
-          {r.snapshot.state === 'error' && <Key label="Essayer le jumelage avec code PIN" onPress={r.startPinPairing} />}
+          {r.snapshot.state === 'error' && <View style={{ gap: 10 }}>
+            {r.snapshot.diagnostic && <Text style={s.muted}>Diagnostic : {r.snapshot.diagnostic}</Text>}
+            <Text style={s.muted}>Sur certaines LG : Paramètres → Réseau → LG Connect Apps doit être activé. Une demande de jumelage peut apparaître sur la TV.</Text>
+            {r.canRetryConnection && <Key label="Réessayer la connexion" icon="tv" onPress={r.retryConnection} />}
+            <Text style={s.muted}>Le code PIN n’est utile que si la télévision en affiche un.</Text>
+          </View>}
           {r.snapshot.state === 'connecting' && <Key label="Annuler la connexion" onPress={r.disconnect} />}
         </View>
       )}

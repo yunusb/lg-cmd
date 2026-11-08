@@ -5,11 +5,13 @@ import { scheduler, type Scheduler } from './hold.ts';
 type Json = Record<string, unknown>;
 const record = (v: unknown): Json => v !== null && typeof v === 'object' && !Array.isArray(v) ? v as Json : {};
 export type State = 'idle' | 'connecting' | 'pairing' | 'pin' | 'connected' | 'limited' | 'error';
-export type Snapshot = { state: State; message: string; navigation: boolean };
+export type Snapshot = { state: State; message: string; navigation: boolean; diagnostic?: string };
 export type TvInput = { id: string; label: string; connected: boolean };
 export type Socket = {
   readyState: number; send: (data: string) => void; close: () => void;
-  onopen: null | (() => void); onerror: null | (() => void); onclose: null | (() => void);
+  onopen: null | (() => void);
+  onerror: null | ((event?: { message?: string }) => void);
+  onclose: null | ((event?: { code?: number; reason?: string }) => void);
   onmessage: null | ((event: { data: unknown }) => void);
 };
 export type Storage = {
@@ -58,7 +60,9 @@ export class WebOsClient {
     this.createSocket = options.createSocket; this.storage = options.storage;
     this.onState = options.onState; this.clock = options.clock ?? scheduler;
   }
-  private emit(state: State, message: string) { this.onState({ state, message, navigation: this.pointerReady }); }
+  private emit(state: State, message: string, diagnostic?: string) {
+    this.onState({ state, message, navigation: this.pointerReady, ...(diagnostic ? { diagnostic } : {}) });
+  }
   private key(ip = this.host) {
     // A stable SSDP identity survives DHCP changes and avoids keying solely on IP.
     return this.pairedId
@@ -82,51 +86,115 @@ export class WebOsClient {
     this.pending.clear();
   }
   disconnect() { this.reset(); this.emit('idle', 'Wi-Fi déconnecté.'); }
-  private fail(message: string) { this.reset(); this.emit('error', message); }
+  private fail(message: string, diagnostic?: string) { this.reset(); this.emit('error', message, diagnostic); }
 
   async connect(value: string, deviceId?: string, pairingMode: 'PROMPT' | 'PIN' = 'PROMPT') {
     this.reset();
     this.pairedId = stableTvId(deviceId);
     const host = localIPv4(value);
-    if (!host) { this.emit('error', 'Saisissez une adresse IP locale, par exemple 192.168.1.20.'); return; }
+    if (!host) { this.emit('error', 'Cette adresse réseau locale est invalide.', 'ADDR-INVALID'); return; }
     this.host = host;
     const generation = this.generation;
     const valid = () => generation === this.generation;
-    this.emit('connecting', 'Connexion à ' + host + '…');
-    let key: string | null = null;
-    try { key = await this.storage.getItemAsync(this.key(host)); } catch { /* pairing without persistence */ }
+    this.emit('connecting', 'Connexion à la télévision…');
+    let storedKey: string | null = null;
+    try { storedKey = await this.storage.getItemAsync(this.key(host)); }
+    catch { /* Pairing also works without local secure-storage access. */ }
     if (!valid()) return;
-    try {
-      const ws = this.createSocket(`ws://${host}:3000/`); this.socket = ws;
+
+    // On older TVs the registered client key can become invalid after a reset.
+    // Retry once without it only if the socket closes before approval or the TV
+    // explicitly reports an invalid key. Never loop or silently bypass a denial.
+    const launch = (clientKey: string | null, attempt: number): void => {
+      if (!valid()) return;
+      let ws: Socket;
+      try { ws = this.createSocket(`ws://${host}:3000/`); }
+      catch {
+        this.fail('Télévision trouvée, mais le canal de commande ne s’ouvre pas. Vérifiez « LG Connect Apps » sur la TV.',
+          'WS3000-OPEN');
+        return;
+      }
+      this.socket = ws;
+      let opened = false;
+      const retryWithoutKey = (): boolean => {
+        if (!valid() || ws !== this.socket || !clientKey || attempt !== 0 || this.registered) return false;
+        this.clock.cancel(this.timer);
+        this.clearSocket(ws);
+        this.socket = undefined;
+        this.emit('connecting', 'Ancienne association non reconnue. Nouvelle demande à accepter sur la TV…');
+        launch(null, 1);
+        return true;
+      };
+      const interrupted = (code?: number) => {
+        if (!valid() || ws !== this.socket) return;
+        if (opened && !this.registered && retryWithoutKey()) return;
+        const suffix = typeof code === 'number' && Number.isInteger(code) && code >= 1000 && code <= 4999
+          ? String(code) : 'X';
+        if (!opened) this.fail(
+          'La TV apparaît dans la recherche, mais le service de télécommande ne répond pas (port 3000). Vérifiez « LG Connect Apps ».',
+          'WS3000-OPEN-' + suffix);
+        else if (!this.registered) this.fail(
+          'La TV a interrompu le jumelage. Vérifiez les demandes d’autorisation sur son écran, puis réessayez.',
+          'WS3000-PAIR-' + suffix);
+        else this.fail('TV déconnectée. Vérifiez le réseau et reconnectez-la, ou utilisez l’infrarouge.',
+          'WS3000-ACTIVE-' + suffix);
+      };
       this.timer = this.clock.after(() => {
-        if (valid()) this.fail('TV injoignable. Vérifiez son IP, le même réseau et LG Connect Apps.');
+        if (!valid() || ws !== this.socket) return;
+        if (!opened) interrupted();
+        else this.fail('La TV n’a pas confirmé l’association. Activez « LG Connect Apps » et acceptez sur son écran.',
+          'WS3000-PAIR-TIMEOUT');
       }, 8000);
+
       ws.onopen = () => {
-        if (!valid()) return;
+        if (!valid() || ws !== this.socket) return;
+        opened = true;
         this.clock.cancel(this.timer);
         this.awaitingPin = pairingMode === 'PIN';
         this.emit(this.awaitingPin ? 'pin' : 'pairing',
-          this.awaitingPin ? 'Entrez le code affiché sur la TV.' : 'Acceptez la demande sur la TV. Vous pouvez utiliser le mode IR pour valider.');
+          this.awaitingPin ? 'Entrez uniquement le code affiché sur la TV.' :
+          'Acceptez la demande sur la TV. L’infrarouge peut servir à valider.');
         this.timer = this.clock.after(() => {
-          if (valid()) this.fail('Jumelage expiré. Acceptez sur la TV, ou oubliez l’ancien jumelage.');
+          if (valid() && ws === this.socket) this.fail(
+            'La TV n’a pas confirmé le jumelage. Vérifiez « LG Connect Apps » et la demande sur son écran.',
+            'WS3000-PAIR-TIMEOUT');
         }, 45000);
         try {
           ws.send(JSON.stringify({ id: 'register', type: 'register', payload: {
             pairingType: pairingMode, forcePairing: false,
             manifest: { manifestVersion: 1, appVersion: '1.2', permissions },
-            ...(key ? { 'client-key': key } : {}),
+            ...(clientKey ? { 'client-key': clientKey } : {}),
           } }));
-        } catch { this.fail('Impossible d’envoyer la demande de jumelage.'); }
+        } catch { this.fail('Impossible d’envoyer la demande d’association.', 'WS3000-SEND'); }
       };
       ws.onmessage = event => {
-        if (valid()) this.message(event.data, generation);
+        if (!valid() || ws !== this.socket) return;
+        this.message(event.data, generation, rawError => {
+          if (!valid() || ws !== this.socket) return;
+          const reason = typeof rawError === 'string' ? rawError.slice(0, 200).toLowerCase() : '';
+          const code = /\b(401|403|404|500)\b/.exec(reason)?.[1] ?? 'ERR';
+          const invalidKey = /invalid.*(key|token)|unauthorized|\b401\b/i.test(reason);
+          if (invalidKey && retryWithoutKey()) return;
+          if (/user denied|user rejected|access denied/i.test(reason))
+            this.fail('Jumelage refusé sur la TV. Autorisez cette application dans « LG Connect Apps ».',
+              'SSAP-' + code);
+          else this.fail('Jumelage refusé. Vérifiez les autorisations de connexion sur la TV.',
+            'SSAP-' + code);
+        });
       };
-      ws.onerror = () => { if (valid()) this.fail('Connexion refusée. TV allumée, webOS et LG Connect Apps requis (port 3000).'); };
-      ws.onclose = () => { if (valid()) this.fail('TV déconnectée. Reconnectez-la ou utilisez l’infrarouge.'); };
-    } catch { this.fail('Impossible d’ouvrir la connexion réseau.'); }
+      // Android can fire onerror before onclose. Keep the later close code when
+      // available; otherwise report a bounded transport error after 250 ms.
+      ws.onerror = () => {
+        if (!valid() || ws !== this.socket) return;
+        this.clock.cancel(this.timer);
+        this.timer = this.clock.after(() => interrupted(), 250);
+      };
+      ws.onclose = event => interrupted(event?.code);
+    };
+    launch(storedKey && storedKey.length <= 2048 ? storedKey : null, 0);
   }
 
-  private message(raw: unknown, generation: number) {
+  private message(raw: unknown, generation: number, onRegisterError?: (error: unknown) => void) {
     if (typeof raw !== 'string' || raw.length > 65536) return;
     let msg: Json;
     try { msg = record(JSON.parse(raw)); } catch { return; }
@@ -150,7 +218,8 @@ export class WebOsClient {
       return;
     }
     if (msg.id === 'register' && (msg.type === 'error' || payload.returnValue === false)) {
-      this.fail('Jumelage refusé. Acceptez sur la TV ou choisissez « Oublier le jumelage ».'); return;
+      onRegisterError?.(msg.error ?? payload.errorCode ?? '');
+      return;
     }
     // Some older webOS TVs request a PIN rather than an on-screen acceptance.
     if (msg.id === 'register' && msg.type === 'response' && !this.registered) {

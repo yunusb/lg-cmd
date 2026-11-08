@@ -61,3 +61,13 @@ Le retour haptique léger est délivré dès le contact via `expo-haptics` (Andr
 **Contrôle de sécurité :** seules les réponses SSDP avec signature exacte sont acceptées ; aucun lien `LOCATION` provenant d'un appareil non fiable n'est ouvert. Les clés de jumelage sont conservées sur le téléphone. La recherche est bornée, au premier plan, et la saisie IP reste dans les options avancées. Le résultat de la recherche ne doit pas être présenté comme une preuve que la TV est pilotable.
 
 **Limites ouvertes :** cette correction ne constitue pas une implémentation du protocole UDAP/NetCast. La prise en charge réelle de la TV 2015 reste à confirmer par son modèle exact ou par une tentative d'association webOS sur le réseau local. Une découverte SSDP ne garantit pas l'absence d'isolation Wi-Fi invité, de pare-feu, ou de restrictions du firmware.
+
+
+## Revue corrective du 8 novembre 2026 — écran d'association
+- **Constat UX P1 :** « TV déconnectée » ne distinguait pas un port indisponible, un jumelage rejeté et une perte après association. L'utilisateur pouvait penser que la découverte SSDP était erronée.
+- **Correctif :** messages adaptés au stade et code de diagnostic compact sans donnée privée ; bouton « Réessayer la connexion » visible sans saisie IP.
+- **Constat UX P1 :** le bouton de jumelage par PIN était montré après toute erreur, sans indication que la TV demandait un code.
+- **Correctif :** suppression de cette action trompeuse sur l'écran d'erreur ; le PIN reste proposé lorsque la TV en affiche vraiment un.
+- **Constat protocolaire :** une ancienne clé de jumelage peut être refusée après réinitialisation du téléviseur.
+- **Correctif :** une seule tentative supplémentaire sans la clé, à la suite d'une fermeture avant association ou d'une erreur explicite de clé invalide. Pas de boucle, pas d'effacement des clés avant confirmation.
+- **Critère de réception :** sur la LG physique, noter le diagnostic et si la demande d'autorisation apparaît ; vérifier que les commandes réelles fonctionnent après acceptation. Aucune réussite réseau réelle n'est revendiquée avant ce test.

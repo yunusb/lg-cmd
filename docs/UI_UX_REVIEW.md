@@ -71,3 +71,11 @@ Le retour haptique léger est délivré dès le contact via `expo-haptics` (Andr
 - **Constat protocolaire :** une ancienne clé de jumelage peut être refusée après réinitialisation du téléviseur.
 - **Correctif :** une seule tentative supplémentaire sans la clé, à la suite d'une fermeture avant association ou d'une erreur explicite de clé invalide. Pas de boucle, pas d'effacement des clés avant confirmation.
 - **Critère de réception :** sur la LG physique, noter le diagnostic et si la demande d'autorisation apparaît ; vérifier que les commandes réelles fonctionnent après acceptation. Aucune réussite réseau réelle n'est revendiquée avant ce test.
+
+
+## Revue réseau/UX du 8 novembre 2026 — retour appareil réel
+La capture utilisateur montre un LG webOS correctement identifié par SSDP, puis `WS3000-PAIR-1008` au jumelage. C'est une **violation de politique WebSocket**, pas une preuve qu'un utilisateur a refusé le prompt. Le forum LG mentionne `invalid origin` comme cause possible et le client WebSocket Android de React Native ajoute Origin automatiquement. Correction ciblée : passerelle native OkHttp, **sans en-tête Origin**, avec validation du réseau local et aucun contournement de TLS ; le protocole SSAP, les clés et les permissions ne sont pas élargis.
+
+L'ancienne interface affichait uniquement l'icône du bouton « Réessayer » : ajout d'un libellé visible, sans déplacer l'utilisateur vers une saisie IP. Texte 1008 révisé pour ne pas accuser à tort le jumelage manuel. La découverte SSDP et les commandes infrarouges n'ont pas changé.
+
+**Deuxième revue critique :** une fermeture 1008 peut aussi signifier une autre règle de sécurité ; le correctif ne démontre pas la cause exacte sans lecture du motif de fermeture du téléviseur. Aucun test en simulation ne remplace une connexion à la LG réelle. Les tests vérifient que 1008 n'engendre pas une boucle de réessais avec une clé ancienne.

@@ -50,3 +50,7 @@ IMPORTANT : passer une compilation Expo ou des tests unitaires ne prouve pas le 
 La recherche se suspend en arrière-plan et reprend en avant-plan, seulement si l'utilisateur se trouve dans le parcours Wi-Fi.
 
 La découverte Android passe par une Coroutine Expo avec Dispatchers.IO pour ne pas monopoliser la file de fonctions natives qui sert aussi à l'infrarouge. La réactivité IR pendant la recherche doit encore être vérifiée sur POCO F3.
+
+
+### Transport Wi-Fi natif (v1.2.5)
+Depuis le 8 novembre 2026, le canal SSAP de la TV utilise un pont WebSocket Android écrit en Kotlin/OkHttp sans en-tête `Origin` : certaines anciennes LG ferment le WebSocket standard de React Native avec le code `1008 invalid origin`. La découverte SSDP reste inchangée et aucune adresse IP n'est demandée sur le parcours normal. Le pont refuse les IP publiques, les noms DNS et les ports autres que 3000. Le module natif n'est disponible que dans un APK EAS, pas Expo Go. La compatibilité réelle du jumelage reste à tester sur la TV.

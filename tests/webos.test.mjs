@@ -389,3 +389,18 @@ test('a connected socket closing reports session loss, not registration failure'
   assert.equal(h.lastState().diagnostic, 'WS3000-ACTIVE-1006');
   assert.match(h.lastState().message, /déconnectée/);
 });
+
+test('WebSocket policy rejection 1008 reports a useful status and never loops on a saved key', async t => {
+  const h = setup(t); h.values.set('lg_key_192_168_1_2','stale-key');
+  await h.client.connect('192.168.1.2'); const ws = h.sockets[0]; ws.open();
+  ws.onclose({code:1008,reason:'invalid origin'});
+  assert.equal(h.sockets.length,1);
+  assert.equal(h.lastState().diagnostic,'WS3000-PAIR-1008');
+  assert.match(h.lastState().message,/refuse la connexion/);
+  assert.ok(!JSON.stringify(h.states).includes('stale-key'));
+});
+test('an unpaired 1008 without saved key uses the same policy diagnostic', async t => {
+  const h=setup(t); await h.client.connect('192.168.1.2');
+  h.sockets[0].open();h.sockets[0].onclose({code:1008});
+  assert.equal(h.lastState().diagnostic,'WS3000-PAIR-1008');
+});

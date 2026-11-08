@@ -3,11 +3,12 @@ import { AppState } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { canTransmitIR, transmitIR } from '../modules/lg-infrared';
 import { IR_CODES, type RemoteKey } from './remote-keys';
-import { INITIAL, WebOsClient, needsPointer, type Socket, type TvInput } from './core/webos';
+import { INITIAL, WebOsClient, needsPointer, type TvInput } from './core/webos';
 import { localIPv4, stableTvId, type TvDevice } from './core/network';
 import { findPreferredTv, loadPreferredTv, rememberTv, PREFERRED_TV_KEY, type PreferredTv } from './core/tvMemory';
 import { shouldBeginDiscovery } from './core/discoveryPolicy';
 import { cancelDiscovery, discoverTVs, openWifiSettings } from './native';
+import { createTvSocket } from './nativeSocket';
 
 export type Mode = 'ir' | 'wifi';
 export type Panel = 'connection' | 'numbers' | 'media' | 'more' | 'inputs' | null;
@@ -47,7 +48,7 @@ export function useRemote() {
 
   const [client] = useState(() => new WebOsClient({
     storage: SecureStore,
-    createSocket: url => new WebSocket(url) as unknown as Socket,
+    createSocket: createTvSocket,
     onState: value => {
       if (!mounted.current) return;
       setSnapshot(value);

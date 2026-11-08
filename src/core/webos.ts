@@ -127,12 +127,16 @@ export class WebOsClient {
       };
       const interrupted = (code?: number) => {
         if (!valid() || ws !== this.socket) return;
-        if (opened && !this.registered && retryWithoutKey()) return;
+        // A 1008 policy rejection will not be fixed by retrying the same request.
+        if (opened && code !== 1008 && !this.registered && retryWithoutKey()) return;
         const suffix = typeof code === 'number' && Number.isInteger(code) && code >= 1000 && code <= 4999
           ? String(code) : 'X';
         if (!opened) this.fail(
           'La TV apparaît dans la recherche, mais le service de télécommande ne répond pas (port 3000). Vérifiez « LG Connect Apps ».',
           'WS3000-OPEN-' + suffix);
+        else if (!this.registered && code === 1008) this.fail(
+          'La TV refuse la connexion de télécommande (1008). Vérifiez « LG Connect Apps » et les autorisations sur son écran.',
+          'WS3000-PAIR-1008');
         else if (!this.registered) this.fail(
           'La TV a interrompu le jumelage. Vérifiez les demandes d’autorisation sur son écran, puis réessayez.',
           'WS3000-PAIR-' + suffix);

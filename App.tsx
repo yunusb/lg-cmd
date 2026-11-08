@@ -157,7 +157,7 @@ function RemoteScreen() {
           {r.snapshot.state === 'error' && <View style={{ gap: 10 }}>
             {r.snapshot.diagnostic && <Text style={s.muted}>Diagnostic : {r.snapshot.diagnostic}</Text>}
             <Text style={s.muted}>Sur certaines LG : Paramètres → Réseau → LG Connect Apps doit être activé. Une demande de jumelage peut apparaître sur la TV.</Text>
-            {r.canRetryConnection && <Key label="Réessayer la connexion" icon="tv" onPress={r.retryConnection} />}
+            {r.canRetryConnection && <Key label="Réessayer la connexion" icon="tv" caption onPress={r.retryConnection} />}
             <Text style={s.muted}>Le code PIN n’est utile que si la télévision en affiche un.</Text>
           </View>}
           {r.snapshot.state === 'connecting' && <Key label="Annuler la connexion" onPress={r.disconnect} />}

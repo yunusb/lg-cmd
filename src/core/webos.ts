@@ -156,7 +156,7 @@ export class WebOsClient {
           'Acceptez la demande sur la TV. L’infrarouge peut servir à valider.');
         this.timer = this.clock.after(() => {
           if (valid() && ws === this.socket) this.fail(
-            'La TV n’a pas confirmé le jumelage. Vérifiez « LG Connect Apps » et la demande sur son écran.',
+            'Le délai de jumelage a expiré. Vérifiez « LG Connect Apps » et acceptez la demande sur la TV.',
             'WS3000-PAIR-TIMEOUT');
         }, 45000);
         try {

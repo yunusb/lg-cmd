@@ -79,3 +79,7 @@ La capture utilisateur montre un LG webOS correctement identifié par SSDP, puis
 L'ancienne interface affichait uniquement l'icône du bouton « Réessayer » : ajout d'un libellé visible, sans déplacer l'utilisateur vers une saisie IP. Texte 1008 révisé pour ne pas accuser à tort le jumelage manuel. La découverte SSDP et les commandes infrarouges n'ont pas changé.
 
 **Deuxième revue critique :** une fermeture 1008 peut aussi signifier une autre règle de sécurité ; le correctif ne démontre pas la cause exacte sans lecture du motif de fermeture du téléviseur. Aucun test en simulation ne remplace une connexion à la LG réelle. Les tests vérifient que 1008 n'engendre pas une boucle de réessais avec une clé ancienne.
+
+
+## Correction ergonomie de validation Wi-Fi — 12 novembre 2026
+**Observation utilisateur :** les flèches et autres touches Wi-Fi semblent utilisables mais OK ne valide pas l'élément sélectionné. Cause logique du code trouvée : OK émettait `type:click` (curseur Magic Remote) alors que les flèches activent le mode directionnel (focus). **Correctif :** envoyer uniquement `type:button\nname:ENTER\n\n`, sans doubler avec `click`. La touche OK reste immédiatement activée au toucher avec un unique retour haptique, sans maintien ni répétition. C'est une correction ciblée du protocole ; le test sur TV réelle reste requis.

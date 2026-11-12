@@ -326,7 +326,11 @@ export class WebOsClient {
     if (commands[key]) { await this.request(commands[key]); return; }
     if (key === 'SOURCE') throw new Error('Utilisez le sélecteur de sources.');
     if (!this.pointerReady || this.navigation?.readyState !== 1) throw new Error('Navigation indisponible. Utilisez l’infrarouge.');
-    const frame = key === 'OK' ? 'type:click\n\n' : pointer[key] ? `type:button\nname:${pointer[key]}\n\n` : null;
+    // D-pad navigation changes the focused item, not the Magic Remote cursor.
+    // A pointer click targets the mouse cursor and can miss the focused item.
+    // OK therefore sends the remote-control ENTER button, exactly once.
+    const frame = key === 'OK' ? 'type:button\nname:ENTER\n\n' :
+      pointer[key] ? `type:button\nname:${pointer[key]}\n\n` : null;
     if (!frame) throw new Error('Commande non prise en charge.');
     this.navigation.send(frame);
   }

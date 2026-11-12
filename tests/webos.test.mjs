@@ -109,9 +109,9 @@ test('pointer connection timeout preserves audio and disables navigation', async
   assert.equal(h.lastState().state, 'limited'); assert.equal(h.lastState().navigation, false);
   assert.equal(h.sockets[1].closed, true);
 });
-test('OK uses the webOS click frame, arrows use button frames', async t => {
+test('OK sends the remote ENTER key (not a pointer click), arrows use button frames', async t => {
   const h = setup(t); await ready(h); await h.client.send('OK'); await h.client.send('UP');
-  assert.deepEqual(h.sockets[1].frames, ['type:click\n\n', 'type:button\nname:UP\n\n']);
+  assert.deepEqual(h.sockets[1].frames, ['type:button\nname:ENTER\n\n', 'type:button\nname:UP\n\n']);
 });
 test('volume uses SSAP and waits for its acknowledgement', async t => {
   const h = setup(t); const ws = await ready(h); const action = h.client.send('VOLUME_UP');
@@ -403,4 +403,36 @@ test('an unpaired 1008 without saved key uses the same policy diagnostic', async
   const h=setup(t); await h.client.connect('192.168.1.2');
   h.sockets[0].open();h.sockets[0].onclose({code:1008});
   assert.equal(h.lastState().diagnostic,'WS3000-PAIR-1008');
+});
+
+test('Wi-Fi D-pad focus is validated by one ENTER frame, not a mouse click', async t => {
+  const h = setup(t); await ready(h);
+  const nav = h.sockets[1];
+  await h.client.send('RIGHT');
+  await h.client.send('DOWN');
+  const count = nav.frames.length;
+  await h.client.send('OK');
+  assert.equal(nav.frames.length, count + 1);
+  assert.equal(nav.frames.at(-1), 'type:button\nname:ENTER\n\n');
+  assert.ok(!nav.frames.includes('type:click\n\n'));
+});
+test('OK remains a discrete action, independent of earlier arrows and media commands', async t => {
+  const h = setup(t); await ready(h);
+  const nav = h.sockets[1];
+  await h.client.send('UP');
+  await h.client.send('OK');
+  await h.client.send('OK');
+  assert.deepEqual(nav.frames, [
+    'type:button\nname:UP\n\n',
+    'type:button\nname:ENTER\n\n',
+    'type:button\nname:ENTER\n\n',
+  ]);
+});
+test('OK is unavailable when navigation socket is closed, without replaying through IR', async t => {
+  const h = setup(t); await ready(h);
+  const nav = h.sockets[1];
+  nav.readyState = 3;
+  const count = nav.frames.length;
+  await assert.rejects(h.client.send('OK'), /Navigation indisponible/);
+  assert.equal(nav.frames.length, count);
 });

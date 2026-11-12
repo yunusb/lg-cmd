@@ -17,7 +17,8 @@
       "android": {
         "buildType": "apk",
         "image": "latest"
-      }
+      },
+      "node": "22.16.0"
     },
     "production": {
       "android": {

@@ -16,3 +16,8 @@ android {
     versionName '1.0.1'
   }
 }
+
+dependencies {
+  // Explicit compile-time OkHttp dependency for the local-only SSAP adapter.
+  implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}
